@@ -13,8 +13,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 db = {
-    "tim": {
-        "username": "tim",
+    "collin": {
+        "username": "collin",
         "full_name": "Collin Rodgers",
         "email": "clrodgers@uncg.edu",
         "hashed_password": "$2b$12$bVjFwOwdgtAlrK9T3hHKEu0MynFpO.bJQLQwjQORB0eUV6ZUG8Pim",
