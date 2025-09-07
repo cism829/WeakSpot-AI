@@ -1,0 +1,15 @@
+Process Control Block (PCB)
+Program Counter (PC)
+fork()
+● Creates a new child process
+● OS creates a new PCB for child process
+exec()
+● Replaces current process memory space with a new program
+● PCB for process remains
+Memory Layout
+● Text Segment: Executable Code
+● Data Segment: Initialized global/static variables
+● Heap: The term 'Heap' refers to the data stored in the memory of a computer. It is a very broad term.
+● Stack: Stack is a computer science term. It is the term for a collection of objects that are stored in an object storage system. The term Stack was coined by Alan Turing.
+● BSS Segement: UNinitialized global/static variables
+Program Counter (PC)
