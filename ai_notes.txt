@@ -9,7 +9,10 @@ exec()
 Memory Layout
 ● Text Segment: Executable Code
 ● Data Segment: Initialized global/static variables
-● Heap: The term 'Heap' refers to the data stored in the memory of a computer. It is a very broad term.
-● Stack: Stack is a computer science term. It is the term for a collection of objects that are stored in an object storage system. The term Stack was coined by Alan Turing.
+● Heap: Heap is a computer science term for a programmable object in the form of a multidimensional data structure. It is also a term for the structure of data that is used in many systems.
+● Stack: Stack is a computer science term that is used to refer to the collection of files in an object. A file is stored in a stack.
 ● BSS Segement: UNinitialized global/static variables
 Program Counter (PC)
+
+Summary 
+Main Subject: subtopic 1> Process Control Block (PCB) Subtopic 2> fork() Creates a new child process OS creates new PCB for child proces exec()
