@@ -1,0 +1,5 @@
+redis
+rq
+torch
+transformers
+pillow
