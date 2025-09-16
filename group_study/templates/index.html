@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/static/script.js" defer></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <title>Document</title>
+</head>
+<body>
+    <h1>WebSocket Chat</h1>
+
+    <h2>Your ID: <span id="ws-id"></span></h2>
+    <div class="message-box">
+        <div id='messages'></div>
+        
+    </div>
+    <div class="user-text">
+            <form action="" onsubmit="sendMessage(event)">
+                <input type="text" id="messageText" autocomplete="off"/>
+                <button>Send</button>
+            </form> 
+    </div>    
+        
+</body>
+</html>

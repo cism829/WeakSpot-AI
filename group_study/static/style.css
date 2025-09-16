@@ -1,0 +1,47 @@
+
+.messages{
+    display: flex;
+    margin-right: 20px;
+    
+    
+}
+.user{
+    /* display: inline-block; */
+    color: blue;
+    /* align-self: flex-end; */
+    justify-self: flex-end;
+    font-weight: bold;
+    margin-right: 15px;
+    padding: 8px 12px;
+    border: 3px solid blue;
+    border-radius: 15px 15px 0 15px;
+}
+
+.notification{
+    justify-self: center;
+}
+
+.other{
+    color: black;
+    justify-self: flex-start;
+    /* align-self: flex-start; */
+    margin-left: 20px;
+}
+
+.message-box{
+    display: flex;
+    flex-direction: column;
+    width: 55%;
+    height: 300px;
+    border: 1px solid black;
+    overflow-y: auto;
+    background-color: lightgray;
+    
+
+}
+
+
+
+.user-text{
+    margin-top: auto;
+}
