@@ -9,18 +9,42 @@
 </head>
 <body>
     <h1>WebSocket Chat</h1>
+    <h2>Join Room</h2>
+    <div class="room">
+        <div class="room-box" id="1">
+            <h2>Room #1</h2>
+            <p>group Descriptions</p>
+            <button onclick="joinRoom('1')">Join Room</button>
+        </div>
+        <div class="room-box" id="2">
+            <h2>Room #2</h2>
+            <p>group Descriptions</p>
+            <button onclick="joinRoom('2')">Join Room</button>
+        </div>
+        <div class="room-box" id="3">
+            <h2>Room #3</h2>
+            <p>group Descriptions</p>
+            <button onclick="joinRoom('3')">Join Room</button>
+        </div>
+    </div>
+    
+    <!-- <form id="roomForm" onsubmit="joinRoom(event)">
+        <input type="text" id="roomInput" placeholder="Enter room name" required />
+        <button>Join Room</button>
+    </form> -->
 
     <h2>Your ID: <span id="ws-id"></span></h2>
-    <div class="message-box">
-        <div id='messages'></div>
-        
-    </div>
-    <div class="user-text">
-            <form action="" onsubmit="sendMessage(event)">
-                <input type="text" id="messageText" autocomplete="off"/>
-                <button>Send</button>
-            </form> 
-    </div>    
-        
+    <div class="message">
+        <div class="message-box">
+            <div id='messages'></div>
+        </div>
+
+        <div class="user-text">
+                <form action="" onsubmit="sendMessage(event)">
+                    <input type="text" id="messageText" autocomplete="off"/>
+                    <button>Send</button>
+                </form> 
+        </div> 
+    </div>  
 </body>
 </html>
