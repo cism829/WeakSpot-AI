@@ -1,11 +1,6 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-app = FastAPI()
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+router = APIRouter()
 
 users = {
     "Collin": {
@@ -15,25 +10,31 @@ users = {
     "Mike": {
         "id": 2,
         "username": "m234"
-    }
-}
-
-rooms = {
-    1: {
-        "room_id": 1,
-        "subject": "Math",
-        "description": "something random for testing short description"
     },
-    2: {
-        "room_id": 2,
-        "subject": "Science",
-        "description": "another something random for testing short description"
+    "Caleb":{
+        "id": 3,
+        "username": "something"
     },
-    3: {
-        "room_id": 3,
-        "subject": "English",
-        "description": "aljfhakufhawo faourfjalf srunflajsf something random for testing short description"
-    }
+    "Monroe":{
+        "id": 4,
+        "username": "mon40"
+    },
+    "Mario":{
+        "id": 5,
+        "username": "monster88"
+    },
+    "Luigi":{
+        "id": 7,
+        "username": "greenie44"
+    },
+    "Link":{
+        "id": 10,
+        "username": "Epona64"
+    },
+    "Pit":{
+        "id": 512,
+        "username": "Flightless98"
+    },
 }
 
 def get_User(user_id: int):
@@ -71,12 +72,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-
-@app.get("/", response_class=HTMLResponse)
-async def get(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.websocket("/ws/{room}/{client_id}")
+@router.websocket("/ws/{room}/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, room: str, client_id: int):
     user = get_User(client_id)
     if (user):
@@ -84,7 +80,7 @@ async def websocket_endpoint(websocket: WebSocket, room: str, client_id: int):
     else:
         username = "guest"
     await manager.connect(websocket, room)
-    await manager.broadcast(f"User {username} has entered Room {room}", room)
+    await manager.broadcast(f"---User {username} has entered Room {room}---", room)
     try:
         while True:
             data = await websocket.receive_text()
@@ -92,5 +88,5 @@ async def websocket_endpoint(websocket: WebSocket, room: str, client_id: int):
             await manager.broadcast(f"User {username}: {data}", room, websocket)
     except WebSocketDisconnect: 
         manager.disconnect(websocket, room)
-        await manager.broadcast(f"User {username} has left Room {room}", room, sender=websocket)
+        await manager.broadcast(f"---User {username} has left Room {room}---", room, sender=websocket)
 

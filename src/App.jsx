@@ -23,6 +23,8 @@ import Profile from "./pages/Profile";
 import Exam from "./pages/Exam";
 import Quiz from "./pages/Quiz";
 import QuizFeedback from "./pages/QuizFeedback";
+import Chat from "./pages/Chat"
+
 
 // Protected Route wrapper
 function PrivateRoute({ children }) {
@@ -53,6 +55,8 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
 
+                <Route path="/chat" element={<Chat />} />
+
                 {/* Protected routes */}
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 <Route path="/notes" element={<PrivateRoute><Notes /></PrivateRoute>} />
@@ -60,6 +64,9 @@ function App() {
                 <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
                 <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
                 <Route path="/studygroups" element={<PrivateRoute><StudyGroups /></PrivateRoute>} />
+
+                {/* <Route path="/chat" element={<PrivateRoute><Chat /></PrivateRoute>} /> */}
+                
                 <Route path="/notes-analysis" element={<PrivateRoute><NotesAnalysis /></PrivateRoute>} />
                 <Route path="/security" element={<PrivateRoute><SecuritySettings /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />

@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.db import Base, engine
 from app.api.auth import router as auth_router
+from app.api import groupchat
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -23,3 +25,4 @@ def health():
     return {"status": "ok"}
 
 app.include_router(auth_router)
+app.include_router(groupchat.router)

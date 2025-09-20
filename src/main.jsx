@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styling/theme.css";
 import "./styling/globals.css";
+import "./styling/groupchat.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
