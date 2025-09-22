@@ -1,18 +1,33 @@
 import { useState, useRef } from "react"
 
 function Chat() {
-    const [messages, setMessages] = useState([])
+    const [roomsMessages, setRoomsMessages] = useState({})
     const [input, setInput] = useState("")
     const [room, setRoom] = useState(null)
     const [connected, setConnected] = useState(false)
-    const clientId = useRef(Math.floor(Math.random() * 15) + 1).current
+    const clientId = useRef(Math.floor(Math.random() * 10) + 1).current
     const ws = useRef(null)
+
+    let messages = []
+    if (room && roomsMessages[room]){
+        messages = roomsMessages[room]
+    }
 
     const joinRoom = (roomNumber) => {
         if (ws.current) {
             ws.current.close() // close previous room
         }
         setRoom(roomNumber)
+        
+        if (!roomsMessages[roomNumber]){
+            setRoomsMessages(prev => {
+                const newMessages = {...prev}
+                newMessages[roomNumber] = []
+                return newMessages
+            })
+        }
+
+
         ws.current = new WebSocket(`ws://localhost:8000/ws/${roomNumber}/${clientId}`)
 
         ws.current.onopen = () => setConnected(true)
@@ -27,7 +42,11 @@ function Chat() {
                 type = "notification";
             }
 
-            setMessages(prev => [...prev, { text, type }]);
+            setRoomsMessages(prev => {
+                const newMessages = {...prev}
+                newMessages[roomNumber] = [...newMessages[roomNumber], {text, type}]
+                return newMessages
+            })
         };
 
         ws.current.onerror = (err) => console.error("WebSocket error", err)

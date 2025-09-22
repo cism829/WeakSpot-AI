@@ -28,11 +28,11 @@ users = {
         "username": "greenie44"
     },
     "Link":{
-        "id": 10,
+        "id": 6,
         "username": "Epona64"
     },
     "Pit":{
-        "id": 512,
+        "id": 8,
         "username": "Flightless98"
     },
 }
