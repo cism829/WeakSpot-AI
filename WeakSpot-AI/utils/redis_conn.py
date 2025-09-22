@@ -9,7 +9,7 @@ def get_redis() -> Redis:
     - Keepalive + health checks
     - Timeouts + retry on timeout
     """
-    url = os.getenv("RQ_REDIS_URL")  # e.g. redis://127.0.0.1:6380/0
+    url = os.getenv("RQ_REDIS_URL")  
     if url:
         return from_url(
             url,

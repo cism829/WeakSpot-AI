@@ -1,12 +1,5 @@
-to perform with the first appearance with the first appearance in the first appearance
-# 33 . Gravity , The force that attracts towards the centers of the cost . "
-# that's human as gravity . It's so emit is well is denoted by War-
-# it . It is a vector quantity . The gravity of the earth depends on ...
-# illness and radius . It acts towards the centre of the earth ... ...
-ACCID providing a suitable contribution to the Virginia Chronicle of the London with a different part of a
-# A body falling in the vacuum is an example of free fall ... ... ...
-" 24 - It is because when parachute expands , it covers more surface ...
-# Canada to the presence of atmosphere air provides more uplined .
-# for parachutist earn land safety and not got tired . But in noon there
-# fell the presence of air and parachutist , can got hurt , ... ... ... ...
-was' Urban all the advent and had been at the channel even there were broken
+```
+Gravity- The force that attracts towards the centers of the earth is known as gravity. It's SI unit is N. It is denoted by W or 7. It is a vector quantity. The gravity of the earth depends on mass and radius. It acts towards the centre of the earth. 
+Free fall- When a body is falling freely, any under the effects of gravity without any external resistance it is known as free fall. A body falling in the vacuum is an example of free fall. 
+It is because when parachute expands, it covers more surface area due to the presence of atmosphere. air provides more upthrust so parachutist can land safely and not get hurt. In room there is no presence of air and parachutist can get hurt.
+```
