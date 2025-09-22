@@ -9,8 +9,8 @@ exec()
 Memory Layout
 ● Text Segment: Executable Code
 ● Data Segment: Initialized global/static variables
-● Heap: Heap is a computer science term for a programmable object in the form of a multidimensional data structure. It is also a term for the structure of data that is used in many systems.
-● Stack: Stack is a computer science term that is used to refer to the collection of files in an object. A file is stored in a stack.
+● Heap: A pool of data. A pool is a place where computers store data and process it. The term 'heap' is used in computer science to describe data storage and processing.
+● Stack: Stack is a computer science term. It's used to describe an array of computers that use a shared memory, or common storage device.
 ● BSS Segement: UNinitialized global/static variables
 Program Counter (PC)
 
