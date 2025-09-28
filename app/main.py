@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.db import Base, engine
+from app.core.db import engine
 from app.api.auth import router as auth_router
+from app.models import Base, User, Note, Quiz, QuizItem
 
 Base.metadata.create_all(bind=engine)
 

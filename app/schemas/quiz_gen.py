@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 class QuizGenRequest(BaseModel):
-    user_id: int
+    user_id: str = Field(..., description="ID of the user generating the quiz")
     note_id: Optional[int] = Field(None)
     subject: Optional[str] = Field(None)
     difficulty: Optional[str] = Field(None)

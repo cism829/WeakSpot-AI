@@ -6,7 +6,7 @@ from app.schemas.auth import RegisterIn, LoginIn, TokenOut
 from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-@router.post("/register", response_model=TokenOut)
+@router.post("/register", status_code=status.HTTP_200_OK)
 def register(user_in: RegisterIn, db: Session = Depends(get_db)):
     username = user_in.username.lower()
     email = user_in.email.lower()
@@ -27,8 +27,8 @@ def register(user_in: RegisterIn, db: Session = Depends(get_db)):
     )
     db.add(new_user)
     db.commit()
-    
-    return {"id": new_user.id, "username": new_user.username, "email": new_user.email}
+
+    return HTTPException(status_code=status.HTTP_200_OK, detail="User registered successfully")
 
 @router.post("/login", response_model=TokenOut)
 def login(login_in: LoginIn, db: Session = Depends(get_db)):
@@ -40,7 +40,7 @@ def login(login_in: LoginIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     
     # Create JWT token
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_access_token(str(user.id))
     
     # Return TokenOut
     return TokenOut(access_token=access_token)
