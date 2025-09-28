@@ -1,0 +1,37 @@
+● Was proposed to transform static L.M.into dynamic goal-driven entities capable of
+addressing more complex problems than typical NLP tasks
+Intelligent Agent (AI Agent)
+● An entity that perceives its environment, takes actions autonomously to achieve goals
+● May improve knowledge through machine learning or aby cquiring knowledge
+Why
+● Faster
+● Increased efficency through automated tasks
+● Can procss large amounts of data quickly and respon promptly
+● Ideal for fast decision making
+Agent ≠ Application
+● An agent acts on behalf of user with a degree of autonomy
+○ May be seen as the next generation of due to
+● An application performs a specific task or set of tasks for a user
+Example: A Travel Agent
+1. LLM
+○ Task: book a flight & find hotel
+○ Details: departure/arrival
+2. Planning (GOal Decmp + Strat)
+○
+3. Memory (Tascking state and context)
+○ Preferred airlines or hotels
+4. Tools (Action Execution in the Real World)
+○ Various APIs
+LangChain
+● Most popular modular agent construction
+● Built around 3 core components
+AutoGen
+● Framework for creating mulit-agent AI applications that can act autonomously
+
+Summary 
+Main Subject: Intelligent Agents  
+Subtopics:  
+- Dynamic Entities  
+- Autonomous Actions  
+- Machine Learning  
+- Modular Construction
