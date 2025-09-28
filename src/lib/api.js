@@ -14,6 +14,61 @@ export const authRegister = (payload) => req('/auth/register', { method: 'POST',
 export const authLogin = (payload) => req('/auth/login', { method: 'POST', body: payload });
 export const authMe = (token) => req('/auth/me', { token });
 
+// --- Quizzes: OpenAI generators ---
+// Generate WITHOUT note
+export const quizzesGenerateAI = (
+  {
+    user_id = 1,
+    subject = "general",
+    difficulty = "medium", // "easy" | "medium" | "hard"
+    mode = "practice",     // "practice" | "exam"
+    num_items = 10,
+    types = ["mcq"],       // ["mcq","short_answer","fill_blank","true_false"]
+  },
+  token
+) =>
+  req("/quizzes/generate-ai", {
+    method: "POST",
+    body: { user_id, subject, difficulty, mode, num_items, types },
+    token,
+  });
+
+// Generate WITH note
+export const quizzesGenerateAIFromNote = (
+  {
+    user_id = 1,
+    subject = "general",
+    difficulty = "medium",
+    mode = "practice",
+    num_items = 10,
+    types = ["mcq"],
+    note_id,               // required for this endpoint
+  },
+  token
+) =>
+  req("/quizzes/generate-ai-from-note", {
+    method: "POST",
+    body: { user_id, subject, difficulty, mode, num_items, types, note_id },
+    token,
+  });
+
+// --- Quizzes: read + submit ---
+export const getQuiz = (quiz_id, token) =>
+  req(`/quizzes/${quiz_id}`, { token });
+
+export const getQuizItems = (quiz_id, token) =>
+  req(`/quizzes/${quiz_id}/items`, { token });
+
+export const submitQuiz = (
+  quiz_id,
+  { user_id = 1, score = 0, time_spent_sec = 0 },
+  token
+) =>
+  req(`/quizzes/${quiz_id}/submit`, {
+    method: "POST",
+    body: { user_id, score, time_spent_sec },
+    token,
+  });
 
 
 
@@ -22,8 +77,6 @@ export const authMe = (token) => req('/auth/me', { token });
 
 
 
-
-export const genQuiz = (payload, token) => req('/quizzes/generate', { method: 'POST', body: payload, token });
 
 export const listNotes = (token) => req('/notes/', { token });
 export const createNote = (note, token) => req('/notes/', { method: 'POST', body: note, token });
@@ -32,7 +85,6 @@ export const listFlashcards = (token) => req('/flashcards/', { token });
 export const createFlashcard = (card, token) => req('/flashcards/', { method: 'POST', body: card, token });
 export const deleteFlashcard = (id, token) => req(`/flashcards/${id}`, { method: 'DELETE', token });
 export const getStats = (token) => req('/stats/', { token });
-export const submitQuiz = (quiz_id, answers, token) => req(`/quizzes/${quiz_id}/submit`, { method: 'POST', body: { answers }, token });
 export const getLeaderboard = (token) => req('/leaderboard/', { token });
 export const getProfile = (token) => req('/profile/', { token });
 export const updateProfile = (payload, token) => req('/profile/', { method: 'PUT', body: payload, token });

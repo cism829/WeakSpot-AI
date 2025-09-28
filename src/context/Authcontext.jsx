@@ -1,10 +1,15 @@
 import { createContext, useState, useContext } from "react";
+import { authMe } from "../lib/api";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
+
+    // const tok = authMe();
+
+    // console.log("AuthContext:", { isLoggedIn, user }, tok);
 
     const login = (userData) => {
         setIsLoggedIn(true);

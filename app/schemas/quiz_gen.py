@@ -1,13 +1,41 @@
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
-from typing import Optional
 
-class QuizGenRequest(BaseModel):
-    user_id: str = Field(..., description="ID of the user generating the quiz")
-    note_id: Optional[int] = Field(None)
-    subject: Optional[str] = Field(None)
-    difficulty: Optional[str] = Field(None)
-    mode: str = Field("practice", description="practice|exam")
+QuizType = Literal["mcq", "short_answer", "fill_blank", "true_false"]
+
+class GenerateBase(BaseModel):
+    user_id: int = 1
+    subject: str = "general"
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
+    mode: Literal["practice", "exam"] = "practice"
     num_items: int = Field(10, ge=1, le=50)
+    types: List[QuizType] = ["mcq"]  # which item types to include
 
-class QuizGenResponse(BaseModel):
-    quiz_id: int
+class GenerateWithoutNote(GenerateBase):
+    pass
+
+class GenerateWithNote(GenerateBase):
+    note_id: int
+
+class QuizOut(BaseModel):
+    id: int
+    title: str
+    difficulty: str
+    mode: str
+    source: str
+    types: Optional[str] = None
+    created_at: str
+
+class QuizItemOut(BaseModel):
+    id: int
+    question: str
+    type: QuizType
+    choices: Optional[list] = None
+    explanation: Optional[str] = None
+
+class SubmitPayload(BaseModel):
+    user_id: int
+    score: float
+    time_spent_sec: int = 0
+
+

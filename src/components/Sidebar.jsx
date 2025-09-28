@@ -14,6 +14,8 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/studygroups", label: "Study Groups" },
     { to: "/notes-analysis", label: "Notes Analysis" },
+    { to: "/generate-quiz",  label: "Generate Quiz" },
+    { to: "/quizzes",        label: "My Quizzes" },
     { to: "/quiz", label: "Quiz" },
     { to: "/exam", label: "Exam" },
     { to: "/quiz-feedback", label: "Quiz Feedback" },

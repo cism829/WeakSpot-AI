@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.db import engine
+from app.core.db import engine, Base
 from app.api.auth import router as auth_router
 from app.models import Base, User, Note, Quiz, QuizItem
+from app.api.quizzes import router as quizzes_router 
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,3 +25,4 @@ def health():
     return {"status": "ok"}
 
 app.include_router(auth_router)
+app.include_router(quizzes_router)

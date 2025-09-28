@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import QuizGenerator from "./pages/QuizGenerator";
 import Notes from "./pages/Notes";
 import Flashcards from "./pages/Flashcards";
 import Progress from "./pages/Progress";
@@ -55,6 +56,7 @@ function App() {
 
                 {/* Protected routes */}
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/generate-quiz" element={<PrivateRoute><QuizGenerator /></PrivateRoute>} />
                 <Route path="/notes" element={<PrivateRoute><Notes /></PrivateRoute>} />
                 <Route path="/flashcards" element={<PrivateRoute><Flashcards /></PrivateRoute>} />
                 <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
@@ -64,7 +66,7 @@ function App() {
                 <Route path="/security" element={<PrivateRoute><SecuritySettings /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                 <Route path="/exam" element={<PrivateRoute><Exam /></PrivateRoute>} />
-                <Route path="/quiz" element={<PrivateRoute><Quiz /></PrivateRoute>} />
+                <Route path="/quiz/:id" element={<PrivateRoute><Quiz /></PrivateRoute>} />
                 <Route path="/quiz-feedback" element={<PrivateRoute><QuizFeedback /></PrivateRoute>} />
               </Routes>
             </main>
@@ -76,3 +78,5 @@ function App() {
 }
 
 export default App;
+
+

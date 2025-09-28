@@ -9,12 +9,23 @@ export default function Navbar({ onToggleSidebar }) {
     const { theme, toggle } = useTheme();
 
     const links = [
-        { to: "/", label: "Home" },
+        { to: "/dashboard", label: "Dashboard" },
         { to: "/notes", label: "Notes" },
+        { to: "/notes-analysis", label: "Notes Analysis" },
         { to: "/flashcards", label: "Flashcards" },
-        { to: "/progress", label: "Progress" },
+
+        { to: "/generate-quiz",  label: "Generate Quiz" },
+        { to: "/quizzes",        label: "My Quizzes" },
+
+        { to: "/exam", label: "Exam" },
         { to: "/leaderboard", label: "Leaderboard" },
-        { to: "/groups", label: "Study Groups" },
+        { to: "/studygroups", label: "Study Groups" },
+        { to: "/progress", label: "Progress" },
+        { to: "/profile", label: "Profile" },
+        { to: "/security", label: "Security Settings" },
+
+        // Not in main nav (flow-only route):
+        // { to: "/quiz-feedback", label: "Quiz Feedback", hidden: true },
     ];
 
     return (
@@ -24,7 +35,7 @@ export default function Navbar({ onToggleSidebar }) {
                 <div className="nav__brand">📘 WeakSpot</div>
             </div>
 
-            <nav className="nav__links" style={{ display: "none" }}>
+            {/* <nav className="nav__links" style={{ display: "none" }}>
                 {links.map(l => (
                     <Link
                         key={l.to}
@@ -34,7 +45,7 @@ export default function Navbar({ onToggleSidebar }) {
                         {l.label}
                     </Link>
                 ))}
-            </nav>
+            </nav> */}
 
             <div className="nav__right">
                 <button className="btn btn--light" onClick={toggle} title="Toggle theme">
