@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Card from "../components/Card";
 import { useAuth } from "../context/Authcontext";
 import { useNavigate, Link } from "react-router-dom";
-import { authLogin, authMe } from "../lib/api";
+import { authLogin } from "../lib/api";
 
 export default function Login() {
     const { login } = useAuth();
@@ -16,9 +16,8 @@ export default function Login() {
         e.preventDefault();
         setErr("");
         try{
-            const tok = await authLogin({ username_or_email, password });
-            const me = await authMe(tok.access_token);
-            login(me, tok.access_token);
+            const me = await authLogin({ username_or_email, password });
+            login(me);
             nav("/dashboard");
         }catch(e){
             setErr(e.message || "Login failed");

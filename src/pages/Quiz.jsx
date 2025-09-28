@@ -1,51 +1,88 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
 import { useAuth } from "../context/Authcontext";
-import { req } from "../lib/api";
+import { req } from "../lib/api"; // keep existing import for compatibility
+// If you are using the helper, you can also import listMyQuizzes from the same module.
+// import { listMyQuizzes } from "../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+/**
+ * This component now has TWO modes:
+ * 1) LIST MODE (no :id in the route): shows "My Quizzes & Exams" with stats and actions.
+ * 2) RUNNER MODE (with :id): runs the selected quiz like before.
+ *
+ * After finishing a quiz, we redirect back to LIST MODE with a flash banner.
+ * The separate QuizFeedback page becomes optional.
+ */
 export default function Quiz() {
     const { id } = useParams();
     const nav = useNavigate();
+    const loc = useLocation();
     const { addCoins } = useAuth();
 
+    // ------- Shared -------
+    const [loading, setLoading] = useState(true);
+    const [err, setErr] = useState("");
+
+    // ------- LIST MODE state -------
+    const [mine, setMine] = useState({ practice: [], exam: [] });
+    const flash = loc?.state?.flash;
+
+    // ------- RUNNER MODE state -------
     const [meta, setMeta] = useState(null);
     const [items, setItems] = useState([]);
     const [i, setI] = useState(0);
     const [picked, setPicked] = useState(null);
     const [typed, setTyped] = useState("");
-    const [answers, setAnswers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [err, setErr] = useState("");
+
+    const total = items.length;
+    const pct = useMemo(() => (total ? (i / total) * 100 : 0), [i, total]);
+    const current = items[i];
+    const isRunner = !!id;
 
     useEffect(() => {
         let alive = true;
-        async function load() {
-            if (!id) {
-                setErr("Missing quiz id in route.");
-                setLoading(false);
-                return;
-            }
+
+        async function loadList() {
             setLoading(true);
             setErr("");
-
             try {
-                // meta
-                const qm = await req(`/quizzes/${id}`);
-                // items
-                const raw = await req(`/quizzes/${id}/items`);
+                // If you added listMyQuizzes() helper, call that. Otherwise use req() directly:
+                // const data = await listMyQuizzes(1);
+                const data = await req(`/quizzes/mine?user_id=1`);
+                if (!alive) return;
+                setMine({
+                    practice: Array.isArray(data?.practice) ? data.practice : [],
+                    exam: Array.isArray(data?.exam) ? data.exam : [],
+                });
+            } catch (e) {
+                if (!alive) return;
+                setErr((e && e.message) || "Failed to load your quizzes.");
+            } finally {
+                if (alive) setLoading(false);
+            }
+        }
 
-                // Normalize items to a safe shape for rendering
+        async function loadRunner() {
+            if (!id) return;
+            setLoading(true);
+            setErr("");
+            try {
+                const qm = await req(`/quizzes/${id}`);
+                const raw = await req(`/quizzes/${id}/items`);
                 const norm = (raw || []).map((it) => {
                     const type = it.type || "mcq";
                     let choices = it.choices;
                     if (typeof choices === "string") {
-                        try { choices = JSON.parse(choices); } catch { choices = null; }
+                        try {
+                            choices = JSON.parse(choices);
+                        } catch {
+                            choices = null;
+                        }
                     }
-                    // Ensure TF has choices
                     if (type === "true_false" && (!choices || !Array.isArray(choices))) {
                         choices = ["True", "False"];
                     }
@@ -57,37 +94,36 @@ export default function Quiz() {
                         explanation: it.explanation || "",
                     };
                 });
-
                 if (!alive) return;
                 setMeta(qm);
                 setItems(norm);
+                setI(0);
+                setPicked(null);
+                setTyped("");
             } catch (e) {
                 if (!alive) return;
-                setErr(
-                    (e && e.message) ||
-                    "Failed to load quiz. Check VITE_API_URL and backend routes."
-                );
+                setErr((e && e.message) || "Failed to load quiz.");
             } finally {
                 if (alive) setLoading(false);
             }
         }
-        load();
+
+        if (isRunner) {
+            loadRunner();
+        } else {
+            loadList();
+        }
         return () => {
             alive = false;
         };
-    }, [id]);
-
-    const total = items.length;
-    const pct = useMemo(() => (total ? (i / total) * 100 : 0), [i, total]);
-    const current = items[i];
+    }, [id, isRunner]);
 
     async function next() {
         if (!current) return;
-
         if ((current.type === "mcq" || current.type === "true_false") && picked == null) return;
         if ((current.type === "short_answer" || current.type === "fill_blank") && !typed.trim()) return;
 
-        setAnswers((a) => [...a, { idx: i, picked, typed }]);
+        // We don't keep full answer history here; compute score server-side if you later expose answers.
         setPicked(null);
         setTyped("");
 
@@ -97,7 +133,7 @@ export default function Quiz() {
         }
 
         // finished
-        const score = 100; // placeholder (expose answers to compute real score if desired)
+        const score = 100; // placeholder
         const reward = Math.max(5, Math.round(score / 10));
         addCoins(reward);
 
@@ -107,27 +143,112 @@ export default function Quiz() {
             body: { user_id: 1, score, time_spent_sec: 0 },
         }).catch(() => { });
 
-        nav("/quiz-feedback", { state: { items, score, reward } });
+        // Redirect back to LIST view with a flash banner (no QuizFeedback required)
+        nav("/quiz", { state: { flash: { score, reward } } });
     }
 
-    // UI states
+    // -------------------- RENDER --------------------
+    if (!isRunner) {
+        // LIST MODE
+        return (
+            <div className="container">
+                <h2>🧪 My Quizzes & Exams</h2>
+
+                {flash ? (
+                    <Card tone="blue">
+                        <strong>Finished!</strong> You scored {flash.score}% and earned 🪙 {flash.reward}.
+                    </Card>
+                ) : null}
+
+                {loading ? (
+                    <p>Loading…</p>
+                ) : err ? (
+                    <Card tone="red"><p style={{ margin: 0 }}>{err}</p></Card>
+                ) : (
+                    <>
+                        <Card tone="purple" subtitle="Practice Quizzes">
+                            {mine.practice.length === 0 ? (
+                                <p className="muted">No practice quizzes yet.</p>
+                            ) : (
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Difficulty</th>
+                                            <th>Created</th>
+                                            <th>Attempts</th>
+                                            <th>Best Score</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {mine.practice.map((q) => (
+                                            <tr key={q.id}>
+                                                <td>{q.title || "Quiz"}</td>
+                                                <td>{q.difficulty || "-"}</td>
+                                                <td>{q.created_at?.slice(0, 19).replace("T", " ")}</td>
+                                                <td>{q.attempts ?? 0}</td>
+                                                <td>{q.best_score != null ? `${Math.round(q.best_score)}%` : "—"}</td>
+                                                <td>
+                                                    <Link className="btn btn--small btn--primary" to={`/quiz/${q.id}`}>
+                                                        Take / Retake
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </Card>
+
+                        <Card tone="yellow" subtitle="Exams">
+                            {mine.exam.length === 0 ? (
+                                <p className="muted">No exams yet.</p>
+                            ) : (
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Difficulty</th>
+                                            <th>Created</th>
+                                            <th>Attempts</th>
+                                            <th>Best Score</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {mine.exam.map((q) => (
+                                            <tr key={q.id}>
+                                                <td>{q.title || "Exam"}</td>
+                                                <td>{q.difficulty || "-"}</td>
+                                                <td>{q.created_at?.slice(0, 19).replace("T", " ")}</td>
+                                                <td>{q.attempts ?? 0}</td>
+                                                <td>{q.best_score != null ? `${Math.round(q.best_score)}%` : "—"}</td>
+                                                <td>
+                                                    <Link className="btn btn--small btn--primary" to={`/quiz/${q.id}`}>
+                                                        Take / Retake
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </Card>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    // RUNNER MODE
     if (loading) return <div className="container"><h2>Loading…</h2></div>;
     if (err) return (
         <div className="container">
             <h2>Quiz</h2>
             <Card tone="red">
                 <p style={{ margin: 0 }}>{err}</p>
-                <pre style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
-                    {`API_URL: ${API_URL}
-Route: /quiz/${id}
-Check: 
-- Backend running?
-- CORS enabled?
-- Endpoints:
-  GET /quizzes/:id
-  GET /quizzes/:id/items
-`}
-                </pre>
+                <pre style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>{`API_URL: ${API_URL}\nRoute: /quiz/${id}`}</pre>
             </Card>
         </div>
     );

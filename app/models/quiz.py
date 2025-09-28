@@ -24,5 +24,5 @@ class Quiz(Base):
     user = relationship("User", back_populates="quizzes")
     items = relationship("QuizItem", back_populates="quiz", cascade="all, delete-orphan")
     note = relationship("Note", back_populates="quizzes")
-
+    results = relationship("Result", back_populates="quiz", cascade="all, delete-orphan")
 

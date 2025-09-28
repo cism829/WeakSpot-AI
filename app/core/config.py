@@ -1,7 +1,8 @@
 import os
 from pydantic import BaseModel
 from dotenv import load_dotenv
-
+from typing import Optional
+from pydantic import SecretStr
 load_dotenv()
 
 class Settings(BaseModel):
@@ -9,5 +10,8 @@ class Settings(BaseModel):
     JWT_SECRET: str = os.getenv("JWT_SECRET", "your_jwt_secret_key")
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+
 settings = Settings()

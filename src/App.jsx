@@ -66,6 +66,7 @@ function App() {
                 <Route path="/security" element={<PrivateRoute><SecuritySettings /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                 <Route path="/exam" element={<PrivateRoute><Exam /></PrivateRoute>} />
+                <Route path="/quiz" element={<PrivateRoute><Quiz /></PrivateRoute>} />
                 <Route path="/quiz/:id" element={<PrivateRoute><Quiz /></PrivateRoute>} />
                 <Route path="/quiz-feedback" element={<PrivateRoute><QuizFeedback /></PrivateRoute>} />
               </Routes>

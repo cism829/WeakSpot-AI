@@ -2,15 +2,16 @@ from datetime import datetime, timedelta
 from typing import Optional     
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import get_db
 from app.models.user import User
+from typing import Annotated, Optional
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
@@ -24,7 +25,28 @@ def create_access_token(sub: str, expires_minutes: int = settings.JWT_EXPIRE_MIN
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm="HS256")
     return encoded_jwt
 
-def get_current_users(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+# --- helper to accept header OR cookie ---
+def token_from_header_or_cookie(request: Request, bearer: Optional[str] = Depends(oauth2_scheme)):
+    # If Swagger/clients sent "Authorization Bearer <token>", use it
+    print("inside token_from_header_or_cookie")
+    if bearer:
+        print("using bearer")
+        return bearer
+    
+    # Otherwise try cookie
+    tok = request.cookies.get("access_token")
+    if not tok:
+        print("no token")
+        raise HTTPException(status_code=401, detail="Not authenticated----")
+    
+    print("using cookie")
+    return tok
+
+def get_current_user(
+    token: Annotated[str, Depends(token_from_header_or_cookie)],
+    db: Annotated[Session, Depends(get_db)]
+) -> User:    
+    print("getting current user")
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -32,7 +54,7 @@ def get_current_users(token: str = Depends(oauth2_scheme), db: Session = Depends
     )
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-        user_id: str = payload.get("sub")
+        user_id: Optional[str] = payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except JWTError:
@@ -40,4 +62,5 @@ def get_current_users(token: str = Depends(oauth2_scheme), db: Session = Depends
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
+
     return user

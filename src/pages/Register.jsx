@@ -2,7 +2,7 @@
 import { useAuth } from "../context/Authcontext";
 import { useNavigate, Link } from "react-router-dom";
 import { useState } from "react";
-import { authRegister, authMe } from "../lib/api";
+import { authRegister } from "../lib/api";
 
 function Register() {
     const navigate = useNavigate();

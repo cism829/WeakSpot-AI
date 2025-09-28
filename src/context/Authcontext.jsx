@@ -7,9 +7,9 @@ export function AuthProvider({ children }) {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
 
-    // const tok = authMe();
+    const me = authMe();
 
-    // console.log("AuthContext:", { isLoggedIn, user }, tok);
+    console.log("AuthContext:", { isLoggedIn, user }, me);
 
     const login = (userData) => {
         setIsLoggedIn(true);

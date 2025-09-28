@@ -9,3 +9,5 @@ python-jose==3.3.0
 redis==5.0.7
 rq==1.16.2
 bcrypt==4.0.1
+openai>=1.52.2
+pydantic-settings>=2.6.1

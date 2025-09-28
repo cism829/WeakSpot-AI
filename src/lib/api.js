@@ -11,8 +11,8 @@ async function req(p,{method='GET',body,token}={}){
 export {req};
 
 export const authRegister = (payload) => req('/auth/register', { method: 'POST', body: payload });
-export const authLogin = (payload) => req('/auth/login', { method: 'POST', body: payload });
-export const authMe = (token) => req('/auth/me', { token });
+export const authLogin = (payload) => req('/auth/login', { method: 'POST', credentials: "include", body: payload });
+export const authMe = () => req('/auth/me', { credentials: "include", });
 
 // --- Quizzes: OpenAI generators ---
 // Generate WITHOUT note
@@ -70,7 +70,9 @@ export const submitQuiz = (
     token,
   });
 
-
+// --- Quizzes: list mine ---
+export const listMyQuizzes = (user_id = 1, token) =>
+  req(`/quizzes/mine?user_id=${user_id}`, { token });
 
 
 

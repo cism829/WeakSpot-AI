@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from app.core.db import get_db
-from app.core.security import get_password_hash, verify_password, create_access_token, get_current_users
+from app.core.security import get_password_hash, verify_password, create_access_token, get_current_user
 from app.schemas.auth import RegisterIn, LoginIn, TokenOut
 from app.models.user import User
+from app.core.config import settings
+from typing import Annotated
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
 @router.post("/register", status_code=status.HTTP_200_OK)
 def register(user_in: RegisterIn, db: Session = Depends(get_db)):
     username = user_in.username.lower()
@@ -30,8 +33,8 @@ def register(user_in: RegisterIn, db: Session = Depends(get_db)):
 
     return HTTPException(status_code=status.HTTP_200_OK, detail="User registered successfully")
 
-@router.post("/login", response_model=TokenOut)
-def login(login_in: LoginIn, db: Session = Depends(get_db)):
+@router.post("/login")
+def login(login_in: LoginIn, response: Response, db: Session = Depends(get_db)):
     username_or_email = login_in.username_or_email.lower()
     user = db.query(User).filter((User.username == username_or_email) | (User.email == username_or_email)).first()
     
@@ -42,9 +45,22 @@ def login(login_in: LoginIn, db: Session = Depends(get_db)):
     # Create JWT token
     access_token = create_access_token(str(user.id))
     
-    # Return TokenOut
-    return TokenOut(access_token=access_token)
+    # Set HttpOnly Cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True, # set True in production (HTTPS)
+        samesite="none", # consider "none" (with secure=True) if cross-site, otherwise "lax"
+        max_age=60 * 60 * 24 * 7,  # 7 days
+        path="/"
+    )
+        
+    # Return user id, name, email
+    return {"id": user.id, "username": user.username, "email": user.email}
 
 @router.get("/me")
-def read_users_me(current_user: User = Depends(get_current_users)):
+def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
+    print("inside /me")
+    print("current user: " + current_user.username)
     return {"id": current_user.id, "username": current_user.username, "email": current_user.email}
