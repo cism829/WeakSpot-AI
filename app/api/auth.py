@@ -69,4 +69,4 @@ def logout(response: Response):
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     print("inside /me")
     print("current user: " + current_user.username)
-    return {"id": current_user.id, "username": current_user.username, "email": current_user.email}
+    return {"id": current_user.id, "username": current_user.username, "email": current_user.email, "first_name": current_user.first_name, "last_name": current_user.last_name, "role": current_user.role}

@@ -8,6 +8,8 @@ export default function Navbar({ onToggleSidebar }) {
     const { user, logout, coins } = useAuth();
     const { theme, toggle } = useTheme();
 
+    console.log("Navbar user:", user);
+
     const links = [
         { to: "/dashboard", label: "Dashboard" },
         { to: "/notes", label: "Notes" },
@@ -54,7 +56,7 @@ export default function Navbar({ onToggleSidebar }) {
                 <div className="coin-pill" title="StudyCoins">🪙 {coins}</div>
                 {user ? (
                     <>
-                        <Link to="/profile" className="btn btn--ghost">Hi, {user.name}</Link>
+                        <Link to="/profile" className="btn btn--ghost">Hi, {user.first_name} {user.last_name}!</Link>
                         <button className="btn btn--primary" onClick={logout}>Logout</button>
                     </>
                 ) : (

@@ -1,6 +1,8 @@
 import { createContext, useState, useContext, useEffect, useMemo, useCallback } from "react";
 import { authMe, authLogin, authLogout } from "../lib/api";
 
+export let globalLink = "/dashboard";
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -40,6 +42,10 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
     const ctx = useContext(AuthContext);
-    if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+    if (!ctx) {
+        console.error("AuthContext not found");
+        throw new Error("useAuth must be used within AuthProvider");
+    }
+    console.log("AuthContext:", ctx);
     return ctx;
 }

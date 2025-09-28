@@ -3,6 +3,7 @@ import { useAuth } from "../context/Authcontext";
 
 export default function Dashboard() {
     const { user } = useAuth();
+    
     return (
         <div className="dashboard">
             <h2 className="dashboard-title">👋 Welcome back, {user.name}</h2>
