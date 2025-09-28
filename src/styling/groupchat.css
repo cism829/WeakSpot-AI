@@ -1,8 +1,24 @@
+.rooms{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+
+    /* background-color: aqua; */
+}
+.room-box{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid black;
+    border-radius: 15px;
+
+    background-color: white;
+}
+
+
 .messages{
     display: flex;
     margin-right: 20px;
-    
-    
 }
 
 .user, .other{

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.models.database import Base, engine
 from app.api.auth import router as auth_router
 from app.api import groupchat
+from app.api import fileUpload
 
 from app.models.chat import User, Rooms, Messages
 
@@ -29,5 +30,6 @@ def health():
 
 app.include_router(auth_router)
 app.include_router(groupchat.router)
+app.include_router(fileUpload.router)
 
 

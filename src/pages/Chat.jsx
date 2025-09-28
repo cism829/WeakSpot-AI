@@ -1,13 +1,24 @@
-import { useState, useRef } from "react"
+import { useState, useRef, ChangeEvent, useEffect } from "react"
+
 
 function Chat() {
+    const [rooms, setRooms] = useState([])
     const [roomsMessages, setRoomsMessages] = useState({})
     const [input, setInput] = useState("")
     const [room, setRoom] = useState(null)
     const [connected, setConnected] = useState(false)
+    const [file, setFile] = useState(null);
     const clientId = useRef(Math.floor(Math.random() * 10) + 1).current
     const ws = useRef(null)
 
+
+    useEffect(()=> {
+        fetch("http://localhost:8000/rooms")
+            .then(res => res.json())
+            .then(data => setRooms(data))
+            .catch(err => console.error("Failed to fetch rooms:", err));
+    }, [])
+   
     let messages = []
     if (room && roomsMessages[room]){
         messages = roomsMessages[room]
@@ -26,7 +37,6 @@ function Chat() {
                 return newMessages
             })
         }
-
 
         ws.current = new WebSocket(`ws://localhost:8000/ws/${roomNumber}/${clientId}`)
 
@@ -62,19 +72,57 @@ function Chat() {
         }
     }
 
+    function handleFile(e){
+        if (e.target.files){
+            setFile(e.target.files[0]);
+        }
+    }
+
+    const uploadFile = async () => {
+        if(!file || !room) return;
+
+        const formData = new FormData();
+        formData.append("upload", file);
+
+        try{
+            const route_url = "http://localhost:8000/upload/"+room+"/"+clientId;
+            const response = await fetch(route_url, {
+                method: "POST",
+                body: formData
+            });
+            const data = await response.json();
+            console.log("File has been uploaded:", data);
+
+            if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+                ws.current.send("/file:" + data.file_id + ":" + data.filename);
+            }
+
+        }
+            catch (err) {
+                console.error("Upload failed:", err);
+    }
+    }
+
     return (
         <div>
             <h1>WebSocket Chat</h1>
 
-            <div>
-                <button onClick={() => joinRoom(1)}>Join Room 1</button>
-                <button onClick={() => joinRoom(2)}>Join Room 2</button>
-                <button onClick={() => joinRoom(3)}>Join Room 3</button>
+            <div className="rooms">
+                {rooms.map(r =>(
+                    <div className="room-box" key={r.room_id} >
+                        <h2>{r.room_name}</h2>
+                        <p>{r.description}</p>
+                        <button onClick={() => joinRoom(r.room_id)}>
+                            Join Room
+                        </button>
+                    </div>
+                ))}
             </div>
 
             {room && (
     <div className="chat-container">
         <h2>Your ID: <span id="ws-id">{clientId}</span></h2>
+        <h2>Current Room: {rooms.find(r => r.room_id === room)?.room_name}</h2>
 
         <div className="message">
             <div className="message-box">
@@ -99,8 +147,20 @@ function Chat() {
                     />
                     <button type="submit" disabled={!connected}>Send</button>
                 </form>
+                <input type="file" onChange={handleFile}/>
+
             </div>
         </div>
+        {file && (
+                    <div>
+                        <p>file name: {file.name}</p>
+                        <p>size: {(file.size / 1024).toFixed(2)} KB</p>
+                        <p>type: {file.type}</p>
+                        <button onClick={uploadFile}>
+                            Upload File
+                        </button>
+                    </div>
+                )}
     </div>
 )}
 

@@ -1,9 +1,16 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from app.models.database import SessionLocal
 from app.models.chat import User, Rooms, Messages
 
 router = APIRouter()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[str, list[WebSocket]] = {}
@@ -35,17 +42,21 @@ manager = ConnectionManager()  # keep your existing connection manager
 def get_user(session: Session, user_id: int):
     return session.query(User).filter(User.id == user_id).first()
 
-def get_or_create_room(session: Session, room_name: str):
-    room = session.query(Rooms).filter(Rooms.room_name == room_name).first()
-    if not room:
-        room = Rooms(room_name=room_name)
-        session.add(room)
-        session.commit()
-        session.refresh(room)
-    return room
+def get_room(session: Session, room_id: int):
+    return session.query(Rooms).filter(Rooms.room_id == room_id).first()
 
-@router.websocket("/ws/{room_name}/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, room_name: str, client_id: int):
+@router.get("/rooms")
+def get_rooms(db: Session = Depends(get_db)):
+    rooms = db.query(Rooms).all()
+    return [{
+        "room_id": room.room_id, 
+        "room_name": room.room_name,
+        'room_subject': room.room_subject,
+        'description': room.description
+        } for room in rooms]
+
+@router.websocket("/ws/{room_id}/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: int):
     session = SessionLocal()
     
     user = get_user(session, client_id)
@@ -55,17 +66,20 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str, client_id: in
         session.commit()
         session.refresh(user)
     
-    room = get_or_create_room(session, room_name)
+    room = get_room(session, room_id)
+    if not room:
+        await websocket.close(code=1000)
+        return
 
     # Load previous messages
     previous_messages = session.query(Messages).filter(Messages.room_id == room.room_id).order_by(Messages.timestamp).all()
 
-    await manager.connect(websocket, room_name)
+    await manager.connect(websocket, room_id)
 
     for msg in previous_messages:
         await websocket.send_text(f"{msg.user.username}: {msg.message_text}")
 
-    await manager.broadcast(f"---User {user.username} has entered Room {room_name}---", room_name)
+    await manager.broadcast(f"---User {user.username} has entered Room {room_id}---", room_id)
 
     try:
         while True:
@@ -81,8 +95,8 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str, client_id: in
             session.commit()
             
             await manager.send_personal_message(f"You: {data}", websocket)
-            await manager.broadcast(f"{user.username}: {data}", room_name, websocket)
+            await manager.broadcast(f"{user.username}: {data}", room_id, websocket)
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, room_name)
-        await manager.broadcast(f"---User {user.username} has left Room {room_name}---", room_name)
+        manager.disconnect(websocket, room_id)
+        await manager.broadcast(f"---User {user.username} has left Room {room_id}---", room_id)
