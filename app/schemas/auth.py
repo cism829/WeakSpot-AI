@@ -11,6 +11,6 @@ class LoginIn(BaseModel):
     username_or_email: str
     password: str
 
-class TokenOut(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+#class TokenOut(BaseModel):
+    #access_token: str
+    #token_type: str = "bearer"

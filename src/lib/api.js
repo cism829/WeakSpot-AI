@@ -1,18 +1,27 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-async function req(p,{method='GET',body,token}={}){
-  const h={'Content-Type':'application/json'};if(token)h['Authorization']=`Bearer ${token}`;
-  const r=await fetch(`${API_URL}${p}`,{method,headers:h,body:body?JSON.stringify(body):undefined});const t=await r.text();
-  let d;
-  try{d=t?JSON.parse(t):null}catch{d={raw:t}}if(!r.ok)throw new Error(d?.detail||r.statusText||'Request failed');
-  return d
+async function req(p, { method = 'GET', body, token, credentials = 'include', headers = {} } = {}) {
+  const h = { 'Content-Type': 'application/json', ...headers };
+  if (token) h['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_URL}${p}`, {
+    method,
+    headers: h,
+    body: body ? JSON.stringify(body) : undefined,
+    credentials
+  });
+  const text = await res.text();
+  let data;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data?.detail || res.statusText || 'Request failed');
+  return data;
 }
 
-export {req};
+export { req };
 
 export const authRegister = (payload) => req('/auth/register', { method: 'POST', body: payload });
-export const authLogin = (payload) => req('/auth/login', { method: 'POST', credentials: "include", body: payload });
-export const authMe = () => req('/auth/me', { credentials: "include", });
+export const authLogin = (payload) => req('/auth/login', { method: 'POST', body: payload });
+export const authMe    = () => req('/auth/me');
+export const authLogout = () => req('/auth/logout', { method: 'POST' });
 
 // --- Quizzes: OpenAI generators ---
 // Generate WITHOUT note

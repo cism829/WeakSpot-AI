@@ -12,6 +12,11 @@ class Settings(BaseModel):
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
+    CORS_ORIGINS: list[str] = [
+        os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
+        "http://127.0.0.1:5173",
+    ]
+    COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+    COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "lax")
 
 settings = Settings()

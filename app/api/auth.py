@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.security import get_password_hash, verify_password, create_access_token, get_current_user
-from app.schemas.auth import RegisterIn, LoginIn, TokenOut
+from app.schemas.auth import RegisterIn, LoginIn
 from app.models.user import User
 from app.core.config import settings
 from typing import Annotated
@@ -30,6 +30,7 @@ def register(user_in: RegisterIn, db: Session = Depends(get_db)):
     )
     db.add(new_user)
     db.commit()
+    db.refresh(new_user)
 
     return HTTPException(status_code=status.HTTP_200_OK, detail="User registered successfully")
 
@@ -48,16 +49,21 @@ def login(login_in: LoginIn, response: Response, db: Session = Depends(get_db)):
     # Set HttpOnly Cookie
     response.set_cookie(
         key="access_token",
-        value=access_token,
+        value=f"Bearer {access_token}",
         httponly=True,
-        secure=True, # set True in production (HTTPS)
-        samesite="none", # consider "none" (with secure=True) if cross-site, otherwise "lax"
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE, 
         max_age=60 * 60 * 24 * 7,  # 7 days
         path="/"
     )
         
     # Return user id, name, email
     return {"id": user.id, "username": user.username, "email": user.email}
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response):
+    response.delete_cookie("access_token", path="/")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @router.get("/me")
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):

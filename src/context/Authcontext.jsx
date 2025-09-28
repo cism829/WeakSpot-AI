@@ -1,33 +1,45 @@
-import { createContext, useState, useContext } from "react";
-import { authMe } from "../lib/api";
+import { createContext, useState, useContext, useEffect, useMemo, useCallback } from "react";
+import { authMe, authLogin, authLogout } from "../lib/api";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const isLoggedIn = !!user;
 
-    const me = authMe();
+    // On mount: hydrate from cookie via /auth/me
+    useEffect(() => {
+        (async () => {
+            try {
+                const me = await authMe();
+                setUser(me);
+            } catch {
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, []);
 
-    console.log("AuthContext:", { isLoggedIn, user }, me);
+    const login = useCallback(async (username_or_email, password) => {
+        await authLogin({ username_or_email, password });
+        const me = await authMe();
+        setUser(me);
+        return me;
+    }, []);
 
-    const login = (userData) => {
-        setIsLoggedIn(true);
-        setUser(userData);
-    };
-
-    const logout = () => {
-        setIsLoggedIn(false);
+    const logout = useCallback(async () => {
+        try { await authLogout(); } catch { }
         setUser(null);
-    };
+    }, []);
 
-    return (
-        <AuthContext.Provider value={{ isLoggedIn, user, login, logout }}>
-            {children}
-        </AuthContext.Provider>
-    );
+    const value = useMemo(() => ({ user, isLoggedIn, loading, login, logout, setUser }), [user, isLoggedIn, loading, login, logout]);
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-    return useContext(AuthContext);
+    const ctx = useContext(AuthContext);
+    if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+    return ctx;
 }
