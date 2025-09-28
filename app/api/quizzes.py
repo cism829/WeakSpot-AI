@@ -320,10 +320,13 @@ def list_mine(user_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
         .group_by(Result.quiz_id)
         .all()
     )
+    print(1)
     stats = {row.qid: {"attempts": int(row.attempts or 0),
                     "best_score": float(row.best_score) if row.best_score is not None else None,
                     "last_taken_at": (str(row.last_taken_at) if row.last_taken_at else None)}
             for row in agg}
+        
+    print(2)
 
     def pack(q: Quiz) -> Dict[str, Any]:
         s = stats.get(q.id, {})
@@ -337,10 +340,10 @@ def list_mine(user_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
             "best_score": s.get("best_score"),
             "last_taken_at": s.get("last_taken_at"),
         }
-
+    print(3)
     practice = []
     exam = []
     for q in quizzes:
         (exam if (q.mode or '').lower() == 'exam' else practice).append(pack(q))
-
+    print(4)
     return {"practice": practice, "exam": exam}

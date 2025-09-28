@@ -3,25 +3,23 @@ import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
 import { useAuth } from "../context/Authcontext";
-import { req } from "../lib/api"; // keep existing import for compatibility
-// If you are using the helper, you can also import listMyQuizzes from the same module.
-// import { listMyQuizzes } from "../lib/api";
-
+import { req, listMyQuizzes } from "../lib/api"; // <-- import helper
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 /**
- * This component now has TWO modes:
- * 1) LIST MODE (no :id in the route): shows "My Quizzes & Exams" with stats and actions.
- * 2) RUNNER MODE (with :id): runs the selected quiz like before.
+ * This component has TWO modes:
+ * 1) LIST MODE (no :id): shows "My Quizzes & Exams" with stats and actions.
+ * 2) RUNNER MODE (with :id): runs the selected quiz.
  *
- * After finishing a quiz, we redirect back to LIST MODE with a flash banner.
- * The separate QuizFeedback page becomes optional.
+ * After finishing, we redirect back to LIST MODE with a flash banner.
  */
 export default function Quiz() {
     const { id } = useParams();
     const nav = useNavigate();
     const loc = useLocation();
-    const { addCoins } = useAuth();
+
+    // Auth: we need the token to hit protected endpoints
+    const { addCoins, token } = useAuth(); // ensure your Authcontext exposes token
 
     // ------- Shared -------
     const [loading, setLoading] = useState(true);
@@ -50,9 +48,8 @@ export default function Quiz() {
             setLoading(true);
             setErr("");
             try {
-                // If you added listMyQuizzes() helper, call that. Otherwise use req() directly:
-                // const data = await listMyQuizzes(1);
-                const data = await req(`/quizzes/mine?user_id=1`);
+                // ✅ Use JWT-based helper and pass token
+                const data = await listMyQuizzes(token);
                 if (!alive) return;
                 setMine({
                     practice: Array.isArray(data?.practice) ? data.practice : [],
@@ -71,8 +68,9 @@ export default function Quiz() {
             setLoading(true);
             setErr("");
             try {
-                const qm = await req(`/quizzes/${id}`);
-                const raw = await req(`/quizzes/${id}/items`);
+                // ✅ Pass token for protected endpoints
+                const qm = await req(`/quizzes/${id}`, { token });
+                const raw = await req(`/quizzes/${id}/items`, { token });
                 const norm = (raw || []).map((it) => {
                     const type = it.type || "mcq";
                     let choices = it.choices;
@@ -116,7 +114,7 @@ export default function Quiz() {
         return () => {
             alive = false;
         };
-    }, [id, isRunner]);
+    }, [id, isRunner, token]);
 
     async function next() {
         if (!current) return;
@@ -137,10 +135,11 @@ export default function Quiz() {
         const reward = Math.max(5, Math.round(score / 10));
         addCoins(reward);
 
-        // fire-and-forget submit
+        // ✅ Submit attempt; backend should read user from JWT
         req(`/quizzes/${id}/submit`, {
             method: "POST",
-            body: { user_id: 1, score, time_spent_sec: 0 },
+            token,
+            body: { score, time_spent_sec: 0 },
         }).catch(() => { });
 
         // Redirect back to LIST view with a flash banner (no QuizFeedback required)

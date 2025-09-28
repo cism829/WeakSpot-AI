@@ -71,8 +71,8 @@ export const submitQuiz = (
   });
 
 // --- Quizzes: list mine ---
-export const listMyQuizzes = (user_id = 1, token) =>
-  req(`/quizzes/mine?user_id=${user_id}`, { token });
+export const listMyQuizzes = () => req(`/quizzes/mine`, {credentials: "include",});
+
 
 
 
