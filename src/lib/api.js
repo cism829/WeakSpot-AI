@@ -90,6 +90,8 @@ export async function getLeaderboard({ token, signal } = {}) {
   }
   return res.json();
 }
+// --- Reviews ---
+export const getBestReview = (id) => req(`/quizzes/${id}/best`);  // normalized best-attempt review
 
 
 
