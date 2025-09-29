@@ -61,14 +61,15 @@ export const quizzesGenerateAIFromNote = (
     token,
   });
 
-
-
 // --- Quizzes: list mine ---
 export const getQuiz = (id) => req(`/quizzes/${id}`);
 export const listMyQuizzes = () => req('/quizzes/mine');
 export const startPractice = (id) => req(`/quizzes/${id}/start`, { method: 'POST' });
 export const submitQuiz = (id, payload) => req(`/quizzes/${id}/submit`, { method: 'POST', body: payload });
-// --- Exams & Leaderboard ---
+// --- Exams ---
+export const getMyExams = () => req('/exams/mine');
+export const startExamById = (id) => req(`/exams/${id}/start`, { method: 'POST' });
+// --- Leaderboard ---
 export async function getLeaderboard({ token, signal } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`; // <-- attach JWT

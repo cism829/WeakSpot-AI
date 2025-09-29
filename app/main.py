@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.db import engine, Base
 from app.api.auth import router as auth_router
-from app.models import Base, User, Note, Quiz, QuizItem
+from app.models import Base, User, Note, Quiz, QuizItem, Result, ExamStart
 from app.api.quizzes import router as quizzes_router 
 from app.api.leaderboard import router as leaderboard_router
 from app.api.exam import router as exam_router

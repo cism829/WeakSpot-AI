@@ -4,7 +4,28 @@
   padding: 2rem;
   text-align: center;
 }
+:root[data-theme="dark"] .card .table {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  color: var(--text) !important;
+}
 
+:root[data-theme="dark"] .card .tablehead {
+  background: #1e293b !important; 
+  color: var(--text) !important;
+}
+
+:root[data-theme="dark"] .card .tablerow {
+  background-color: transparent !important;
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .card .table__row.is-top {
+  background: #1a2e05 !important; 
+  color: var(--text) !important;
+  font-weight: bold;
+} 
 .logo {
   height: 6em;
   padding: 1.5em;

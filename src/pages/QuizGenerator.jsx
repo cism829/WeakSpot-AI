@@ -54,6 +54,8 @@ export default function QuizGenerator() {
             if (!data?.quiz_id) {
                 throw new Error("Generation succeeded but no quiz_id returned.");
             }
+            if (mode === "exam") nav(`/exam`);
+            else
             nav(`/quiz/${data.quiz_id}`);
         } catch (e) {
             setErr(e?.message || "Generation failed.");
