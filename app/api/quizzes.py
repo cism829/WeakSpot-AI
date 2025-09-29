@@ -1,19 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Any, Dict, List
 from sqlalchemy import func
+from typing import List, Dict, Any
 import json
 
 from app.core.config import settings
-from app.core.db import get_db  # or app.db.session.get_db if that's your project
+from app.core.db import get_db
+from app.core.security import get_current_user
+from app.models.user import User
 from app.models.quiz import Quiz
 from app.models.quiz_item import QuizItem
 from app.models.result import Result
+from app.models.attempt import Attempt
+from app.schemas.quiz_gen import GenerateWithNote, GenerateWithoutNote, QuizOut, QuizItemOut, SubmitPayload
 from openai import OpenAI
-
-from app.schemas.quiz_gen import (
-    GenerateWithoutNote, GenerateWithNote, QuizOut, QuizItemOut, SubmitPayload
-)
 
 router = APIRouter(prefix="/quizzes", tags=["quizzes"])
 
@@ -211,95 +211,79 @@ def _quiz_to_dict(q: Quiz) -> Dict[str, Any]:
         "source": q.source, "types": q.types, "created_at": str(q.created_at)
     }
 
-@router.get("/{quiz_id}")
-def get_quiz(quiz_id: int, db: Session = Depends(get_db)) -> QuizOut:
-    q = db.get(Quiz, quiz_id)
-    if not q:
-        raise HTTPException(status_code=404, detail="Quiz not found")
-    return _quiz_to_dict(q)
-
-@router.get("/{quiz_id}/items")
-def get_quiz_items(quiz_id: int, db: Session = Depends(get_db)) -> List[QuizItemOut]:
-    items = db.query(QuizItem).filter(QuizItem.quiz_id == quiz_id).all()
-    out: List[dict] = []
-    for it in items:
-        entry = {
-            "id": it.id,
-            "question": it.question,
-            "type": it.type,
-            "explanation": it.explanation,
-        }
-        if it.choices:
-            try:
-                entry["choices"] = json.loads(it.choices)
-            except Exception:
-                entry["choices"] = None
-        out.append(entry)
-    return out
-
-@router.post("/{quiz_id}/submit")
-def submit_quiz(quiz_id: int, payload: SubmitPayload, db: Session = Depends(get_db)) -> Dict[str, Any]:
-    q = db.get(Quiz, quiz_id)
-    if not q:
-        raise HTTPException(status_code=404, detail="Quiz not found")
-    db.add(Result(
-        quiz_id=quiz_id,
-        user_id=payload.user_id,
-        score=float(payload.score),
-        time_spent_sec=int(payload.time_spent_sec)
-    ))
-    db.commit()
-    return {"message": "Result recorded"}
-
-
 @router.get("/mine")
-def list_mine(user_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """Return quizzes for the given user, with simple aggregate stats.
-    Response structure:
-    {
-    "practice": [ {id, title, mode, difficulty, created_at, attempts, best_score, last_taken_at} ],
-    "exam":     [ ... ]
-    }
-    """
-    # Fetch all quizzes created by this user
-    quizzes = db.query(Quiz).filter(Quiz.user_id == user_id).order_by(Quiz.created_at.desc()).all()
-
-    # Aggregate results per quiz for this user
-    agg = (
-        db.query(
-            Result.quiz_id.label("qid"),
-            func.count(Result.id).label("attempts"),
-            func.max(Result.score).label("best_score"),
-            func.max(Result.taken_at).label("last_taken_at"),
-        )
-        .filter(Result.user_id == user_id)
+def list_my_quizzes(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    quizzes = db.query(Quiz).filter(Quiz.user_id == user.id).order_by(Quiz.created_at.desc()).all()
+    stats = (
+        db.query(Result.quiz_id, func.count(Result.id).label("attempts"), func.max(Result.score).label("best_score"), func.max(Result.taken_at).label("last_taken_at"))
+        .filter(Result.user_id == user.id)
         .group_by(Result.quiz_id)
         .all()
     )
-    print(1)
-    stats = {row.qid: {"attempts": int(row.attempts or 0),
-                    "best_score": float(row.best_score) if row.best_score is not None else None,
-                    "last_taken_at": (str(row.last_taken_at) if row.last_taken_at else None)}
-            for row in agg}
-        
-    print(2)
+    s_map = {qid: {"attempts": att, "best_score": best, "last_taken_at": str(last) if last else None} for (qid, att, best, last) in stats}
 
     def pack(q: Quiz) -> Dict[str, Any]:
-        s = stats.get(q.id, {})
+        st = s_map.get(q.id, {})
         return {
             "id": q.id,
             "title": q.title,
             "mode": q.mode,
             "difficulty": q.difficulty,
             "created_at": str(q.created_at),
-            "attempts": s.get("attempts", 0),
-            "best_score": s.get("best_score"),
-            "last_taken_at": s.get("last_taken_at"),
+            "attempts": st.get("attempts", 0),
+            "best_score": st.get("best_score"),
+            "last_taken_at": st.get("last_taken_at"),
         }
-    print(3)
-    practice = []
-    exam = []
+
+    practice, exam = [], []
     for q in quizzes:
-        (exam if (q.mode or '').lower() == 'exam' else practice).append(pack(q))
-    print(4)
+        (exam if (q.mode or "").lower() == "exam" else practice).append(pack(q))
+
     return {"practice": practice, "exam": exam}
+
+@router.get("/{quiz_id}", response_model=QuizOut)
+def get_quiz(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    return QuizOut(
+        id=q.id, title=q.title, difficulty=q.difficulty, mode=q.mode, created_at=str(q.created_at),
+        items=[
+            QuizItemOut(
+                id=qi.id, question=qi.question, type=qi.type,
+                choices=(json.loads(qi.choices) if qi.choices else None),
+                explanation=qi.explanation
+            )
+            for qi in q.items
+        ]
+    )
+
+@router.post("/{quiz_id}/start")
+def start_practice(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    existed = db.query(Attempt).filter(Attempt.user_id == user.id, Attempt.quiz_id == quiz_id).first()
+    if existed:
+        return {"ok": True, "awarded": False, "coins_balance": user.coins_balance, "coins_earned_total": user.coins_earned_total}
+    att = Attempt(quiz_id=quiz_id, user_id=user.id)
+    db.add(att)
+    user.coins_earned_total = (user.coins_earned_total or 0) + settings.COIN_PER_QUIZ
+    user.coins_balance = (user.coins_balance or 0) + settings.COIN_PER_QUIZ
+    db.commit()
+    return {"ok": True, "awarded": True, "coins_balance": user.coins_balance, "coins_earned_total": user.coins_earned_total}
+
+@router.post("/{quiz_id}/submit")
+def submit_quiz(quiz_id: int, payload: SubmitPayload, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    r = Result(quiz_id=quiz_id, user_id=user.id, score=payload.score, time_spent_sec=payload.time_spent_sec)
+    db.add(r)
+
+    user.total_points = (user.total_points or 0) + int(round(payload.score or 0))
+
+    db.commit()
+    return {"ok": True, "coins_earned_total": user.coins_earned_total, "coins_balance": user.coins_balance, "total_points": user.total_points}

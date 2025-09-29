@@ -5,7 +5,7 @@ import { useTheme } from "../context/ThemeContext";
 
 export default function Navbar({ onToggleSidebar }) {
     const { pathname } = useLocation();
-    const { user, logout, coins } = useAuth();
+    const { user, logout} = useAuth();
     const { theme, toggle } = useTheme();
 
     console.log("Navbar user:", user);
@@ -53,9 +53,10 @@ export default function Navbar({ onToggleSidebar }) {
                 <button className="btn btn--light" onClick={toggle} title="Toggle theme">
                     {theme === "light" ? "🌙" : "☀️"}
                 </button>
-                <div className="coin-pill" title="StudyCoins">🪙 {coins}</div>
                 {user ? (
+                    
                     <>
+                        <div className="coin-pill" title="StudyCoins">🪙 {user.coins_balance}</div>
                         <Link to="/profile" className="btn btn--ghost">Hi, {user.first_name} {user.last_name}!</Link>
                         <button className="btn btn--primary" onClick={logout}>Logout</button>
                     </>

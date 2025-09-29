@@ -8,42 +8,40 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(() => {
         try { return JSON.parse(localStorage.getItem("user")) || null; } catch { return null; }
-    });
-    const [loading, setLoading] = useState(true);
+    });    const [loading, setLoading] = useState(true);
     const isLoggedIn = !!user;
 
-    // Hydrate on mount
+    // On mount: hydrate from cookie via /auth/me
     useEffect(() => {
-        let alive = true;
         (async () => {
             try {
                 const me = await authMe();
-                if (!alive) return;
                 setUser(me);
                 localStorage.setItem("user", JSON.stringify(me));
+
             } catch {
-                // not logged in
                 setUser(null);
                 localStorage.removeItem("user");
+
             } finally {
-                if (alive) setLoading(false);
+                setLoading(false);
             }
         })();
-        return () => { alive = false; };
     }, []);
 
     const login = useCallback(async (username_or_email, password) => {
-        const data = await authLogin(username_or_email, password);
-        setUser(data);
+        await authLogin({ username_or_email, password });
+        const me = await authMe();
+        setUser(me);
         localStorage.setItem("user", JSON.stringify(data));
-        return data;
+
+        return me;
     }, []);
 
     const logout = useCallback(async () => {
-        try { await authLogout(); } finally {
-            setUser(null);
-            localStorage.removeItem("user");
-        }
+        try { await authLogout(); } catch { }
+        setUser(null);
+        localStorage.removeItem("user");
     }, []);
 
     const value = useMemo(() => ({ user, isLoggedIn, loading, login, logout, setUser }), [user, isLoggedIn, loading, login, logout]);

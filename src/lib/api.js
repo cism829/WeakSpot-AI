@@ -61,31 +61,34 @@ export const quizzesGenerateAIFromNote = (
     token,
   });
 
-// --- Quizzes: read + submit ---
-export const getQuiz = (quiz_id, token) =>
-  req(`/quizzes/${quiz_id}`, { token });
 
-export const getQuizItems = (quiz_id, token) =>
-  req(`/quizzes/${quiz_id}/items`, { token });
-
-export const submitQuiz = (
-  quiz_id,
-  { user_id = 1, score = 0, time_spent_sec = 0 },
-  token
-) =>
-  req(`/quizzes/${quiz_id}/submit`, {
-    method: "POST",
-    body: { user_id, score, time_spent_sec },
-    token,
-  });
 
 // --- Quizzes: list mine ---
-export const listMyQuizzes = () => req(`/quizzes/mine`, {credentials: "include",});
-
+export const getQuiz = (id) => req(`/quizzes/${id}`);
+export const listMyQuizzes = () => req('/quizzes/mine');
+export const startPractice = (id) => req(`/quizzes/${id}/start`, { method: 'POST' });
+export const submitQuiz = (id, payload) => req(`/quizzes/${id}/submit`, { method: 'POST', body: payload });
 // --- Exams & Leaderboard ---
-export const startExam = () => req('/exams/start', { method: 'POST' });
-export const getLeaderboard = () => req('/leaderboard/');
-export { API_URL, req };
+export async function getLeaderboard({ token, signal } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`; // <-- attach JWT
+
+  const res = await fetch(`${API_URL}/leaderboard/`, {
+    method: "GET",
+    headers,
+    signal,
+    // optional: include cookies too if you sometimes use cookie auth
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    let detail;
+    try { detail = text ? JSON.parse(text)?.detail : undefined; } catch {}
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
 
 
 
