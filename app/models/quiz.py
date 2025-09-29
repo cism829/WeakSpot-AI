@@ -6,7 +6,7 @@ class Quiz(Base):
     __tablename__ = "quizzes"
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     note_id = Column(Integer, ForeignKey("notes.id", ondelete="SET NULL"), nullable=True)
 
     title = Column(String(255), nullable=False, default="Generated Quiz")

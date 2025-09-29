@@ -82,7 +82,10 @@ export const submitQuiz = (
 // --- Quizzes: list mine ---
 export const listMyQuizzes = () => req(`/quizzes/mine`, {credentials: "include",});
 
-
+// --- Exams & Leaderboard ---
+export const startExam = () => req('/exams/start', { method: 'POST' });
+export const getLeaderboard = () => req('/leaderboard/');
+export { API_URL, req };
 
 
 
@@ -96,7 +99,6 @@ export const listFlashcards = (token) => req('/flashcards/', { token });
 export const createFlashcard = (card, token) => req('/flashcards/', { method: 'POST', body: card, token });
 export const deleteFlashcard = (id, token) => req(`/flashcards/${id}`, { method: 'DELETE', token });
 export const getStats = (token) => req('/stats/', { token });
-export const getLeaderboard = (token) => req('/leaderboard/', { token });
 export const getProfile = (token) => req('/profile/', { token });
 export const updateProfile = (payload, token) => req('/profile/', { method: 'PUT', body: payload, token });
 export const getProgress = (token) => req('/progress/', { token });

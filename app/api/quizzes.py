@@ -73,51 +73,7 @@ def _build_user_prompt(subject: str, difficulty: str, n: int, types: List[str], 
         '- True/False uses the words "True" or "False" in answer_text.\n'
         "- Keep explanations brief, 1–2 sentences max.\n"
     )
-def _build_user_prompt(subject: str, difficulty: str, n: int, types: List[str], note_text: str | None = None) -> str:
-    type_desc = {
-        "mcq": (
-            '{ "type":"mcq", "question":"...", "choices":["A","B","C","D"], '
-            '"answer_index": 0, "explanation":"..." }'
-        ),
-        "short_answer": (
-            '{ "type":"short_answer", "question":"...", '
-            '"answer_text":"concise expected answer", "explanation":"..." }'
-        ),
-        "fill_blank": (
-            '{ "type":"fill_blank", "question":"Use __ to complete the sentence", '
-            '"answer_text":"word or phrase", "explanation":"..." }'
-        ),
-        "true_false": (
-            '{ "type":"true_false", "question":"...", '
-            '"answer_text":"True" | "False", "explanation":"..." }'
-        ),
-    }
 
-    allowed_join = ", ".join(type_desc[t] for t in types)
-    note_clause = f"\nContext (from student notes):\n{note_text}\n" if note_text else ""
-    types_list = ", ".join(types)
-
-    # Build the schema with doubled braces for literals; only {allowed_join} is an f-expression
-    schema = (
-        "{{\n"
-        '  "items": [\n'
-        "    {{ \"one_of\": [\n"
-        f"      {allowed_join}\n"
-        "    ]}}\n"
-        "}}\n"
-    )
-
-    return (
-        f"Create {n} {difficulty} {subject} questions across these item types: {types_list}.\n"
-        f"{note_clause}"
-        "Return STRICT JSON with this schema:\n"
-        f"{schema}\n"
-        "Rules:\n"
-        f"- Questions must be solvable without external info beyond common {subject} knowledge and any provided context.\n"
-        "- MCQ uses exactly 4 choices.\n"
-        '- True/False uses the words "True" or "False" in answer_text.\n'
-        "- Keep explanations brief, 1–2 sentences max.\n"
-    )
 
 def _openai_generate(subject: str, difficulty: str, n: int, types: List[str], note_text: str | None = None):
     _assert_openai()

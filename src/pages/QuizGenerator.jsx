@@ -128,7 +128,7 @@ export default function QuizGenerator() {
                     onClick={generate}
                     disabled={submitting}
                 >
-                    {submitting ? "Generatingâ€¦" : "Generate"}
+                    {submitting ? "Generating" : "Generate"}
                 </button>
             </div>
         </div>

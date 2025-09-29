@@ -5,7 +5,8 @@ from app.core.db import engine, Base
 from app.api.auth import router as auth_router
 from app.models import Base, User, Note, Quiz, QuizItem
 from app.api.quizzes import router as quizzes_router 
-
+from app.api.leaderboard import router as leaderboard_router
+from app.api.exam import router as exam_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Tutor - Backend", version="1.0.0")
@@ -26,3 +27,5 @@ def health():
 
 app.include_router(auth_router)
 app.include_router(quizzes_router)
+app.include_router(leaderboard_router)
+app.include_router(exam_router)

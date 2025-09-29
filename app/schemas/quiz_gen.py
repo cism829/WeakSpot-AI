@@ -15,16 +15,7 @@ class GenerateWithoutNote(GenerateBase):
     pass
 
 class GenerateWithNote(GenerateBase):
-    note_id: int
-
-class QuizOut(BaseModel):
-    id: int
-    title: str
-    difficulty: str
-    mode: str
-    source: str
-    types: Optional[str] = None
-    created_at: str
+    note_text: str
 
 class QuizItemOut(BaseModel):
     id: int
@@ -33,8 +24,15 @@ class QuizItemOut(BaseModel):
     choices: Optional[list] = None
     explanation: Optional[str] = None
 
+class QuizOut(BaseModel):
+    id: int
+    title: str
+    difficulty: str
+    mode: str
+    created_at: str
+    items: List[QuizItemOut]
+
 class SubmitPayload(BaseModel):
-    user_id: int
     score: float
     time_spent_sec: int = 0
 

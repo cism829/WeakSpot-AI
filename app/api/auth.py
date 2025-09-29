@@ -58,7 +58,9 @@ def login(login_in: LoginIn, response: Response, db: Session = Depends(get_db)):
     )
         
     # Return user id, name, email
-    return {"id": user.id, "username": user.username, "email": user.email}
+    return {"id": user.id, "username": user.username, "email": user.email,
+            "coins_earned_total": user.coins_earned_total, "coins_balance": user.coins_balance,
+            "total_points": user.total_points}
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response):
@@ -69,4 +71,7 @@ def logout(response: Response):
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     print("inside /me")
     print("current user: " + current_user.username)
-    return {"id": current_user.id, "username": current_user.username, "email": current_user.email, "first_name": current_user.first_name, "last_name": current_user.last_name, "role": current_user.role}
+    return {"id": current_user.id, "username": current_user.username, "email": current_user.email,
+            "first_name": current_user.first_name, "last_name": current_user.last_name, "role": current_user.role,
+            "coins_earned_total": current_user.coins_earned_total, "coins_balance": current_user.coins_balance,
+            "total_points": current_user.total_points}

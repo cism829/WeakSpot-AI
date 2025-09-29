@@ -13,7 +13,7 @@ class Result(Base):
 
     # Optional: relationships (wire these only if your Quiz/User models have back_populates)
     quiz = relationship("Quiz", back_populates="results")
-    # user = relationship("User", back_populates="results")
+    user = relationship("User", back_populates="results")
 
 # Helpful composite index for listing attempts quickly
 Index("ix_results_user_quiz_time", Result.user_id, Result.quiz_id, Result.taken_at.desc())
