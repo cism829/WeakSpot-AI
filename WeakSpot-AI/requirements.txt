@@ -1,5 +1,5 @@
-redis
-rq
+dotenv
+openai
 torch
-transformers
 pillow
+psycopg2-binary
