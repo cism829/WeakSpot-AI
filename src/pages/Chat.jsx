@@ -45,16 +45,34 @@ function Chat() {
         ws.current.onmessage = (event) => {
             const text = event.data;
             let type = "other";
+            let fileObj = null;
 
-            if (text.startsWith("You:")) {
+            // if (text.startsWith("You:")) {
+            //     type = "user";
+            // } else if (text.includes("entered") || text.includes("left")) {
+            //     type = "notification";
+            // } else if (text.includes("/file:")) {
+            //     type = "file";
+            //     const parts = text.split(":"); // "/file:file_id:filename"
+            //     myFile = { id: parts[1], name: parts[2] };
+            // }
+            if (text.includes("/file:")) {
+                console.log(text)
+                type = "file";
+                const parts = text.split(":"); // "/file:file_id:filename"
+                console.log(parts)
+                fileObj = { id: parts[2], name: parts[3] };
+            } 
+            else if (text.startsWith("You:")) {
                 type = "user";
-            } else if (text.includes("entered") || text.includes("left")) {
+            } 
+            else if (text.includes("entered") || text.includes("left")) {
                 type = "notification";
             }
 
             setRoomsMessages(prev => {
                 const newMessages = {...prev}
-                newMessages[roomNumber] = [...newMessages[roomNumber], {text, type}]
+                newMessages[roomNumber] = [...newMessages[roomNumber], {text, type, file: fileObj }]
                 return newMessages
             })
         };
@@ -105,7 +123,7 @@ function Chat() {
 
     return (
         <div>
-            <h1>WebSocket Chat</h1>
+            <h1>Study Group Hubs</h1>
 
             <div className="rooms">
                 {rooms.map(r =>(
@@ -127,11 +145,24 @@ function Chat() {
         <div className="message">
             <div className="message-box">
                 <div id="messages">
-                    {messages.map((msg, idx) => (
-                        <p key={idx} className={msg.type}>
-                            {msg.text}
-                        </p>
-                    ))}
+                    {messages.map((msg, idx) => {
+                        if (msg.type === "file"){
+                            return (
+                                <p key={idx} className={msg.type}>
+                                    <a href={"http://localhost:8000/download/" + msg.file.id} download={msg.file.name}>
+                                        {msg.file.name}
+                                    </a>
+                                </p>
+                            )
+                        } else {
+                            return (
+                                <p key={idx} className={msg.type}>
+                                {msg.text}
+                                </p>
+                            )
+                            
+                        }
+                    })}
                 </div>
             </div>
 

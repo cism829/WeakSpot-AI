@@ -56,6 +56,7 @@ function App() {
                 <Route path="/register" element={<Register />} />
 
                 <Route path="/chat" element={<Chat />} />
+                <Route path="/studygroups" element={<StudyGroups />} />
 
                 {/* Protected routes */}
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
@@ -63,7 +64,7 @@ function App() {
                 <Route path="/flashcards" element={<PrivateRoute><Flashcards /></PrivateRoute>} />
                 <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
                 <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
-                <Route path="/studygroups" element={<PrivateRoute><StudyGroups /></PrivateRoute>} />
+                {/* <Route path="/studygroups" element={<PrivateRoute><StudyGroups /></PrivateRoute>} /> */}
 
                 {/* <Route path="/chat" element={<PrivateRoute><Chat /></PrivateRoute>} /> */}
                 

@@ -37,7 +37,7 @@ class ConnectionManager:
                     await connection.send_text(message)
 
 
-manager = ConnectionManager()  # keep your existing connection manager
+manager = ConnectionManager()  
 
 def get_user(session: Session, user_id: int):
     return session.query(User).filter(User.id == user_id).first()
@@ -71,8 +71,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: int)
         await websocket.close(code=1000)
         return
 
-    # Load previous messages
-    previous_messages = session.query(Messages).filter(Messages.room_id == room.room_id).order_by(Messages.timestamp).all()
+    
+    previous_messages = session.query(Messages).filter(Messages.room_id == room.room_id).order_by(Messages.timestamp).all()                 #bug that needs to be fixed
 
     await manager.connect(websocket, room_id)
 
@@ -85,7 +85,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: int)
         while True:
             data = await websocket.receive_text()
             
-            # Save message to DB
             message = Messages(
                 message_text=data,
                 user_id=user.id,
