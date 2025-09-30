@@ -25,15 +25,15 @@ ai_text = []
 example1 = "example_notes/example1.pdf"
 example2 = "example_notes/example2.pdf"
 
-ai_output = "ai_results/ai_fixed_notes_2_1.txt"
-suggested_fixes = 'ai_results/note_suggestions_2_1.txt'
+ai_output = "ai_results/presentation_example1.txt"
+suggested_fixes = 'ai_results/presentation_suggestions1.txt'
 subject = 'computer science'
 
 nlp = spacy.load("en_core_web_sm")
 
 
 print("extracting file")
-with pdfplumber.open(example2) as myPdf:
+with pdfplumber.open(example1) as myPdf:
     for page in myPdf.pages:
         original_text += page.extract_text() + "\n"
 
