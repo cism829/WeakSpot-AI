@@ -2,7 +2,7 @@ import { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/Authcontext";
 import { ThemeProvider } from "./context/ThemeContext";
-
+import "./App.css";
 // Layout
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
