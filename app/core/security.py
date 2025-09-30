@@ -30,7 +30,6 @@ def token_from_header_or_cookie(request: Request, bearer: Optional[str] = Depend
     # If Swagger/clients sent "Authorization Bearer <token>", use it
     print("inside token_from_header_or_cookie")
     if bearer:
-        print("using bearer")
         return bearer
     
     # Otherwise try cookie
@@ -39,14 +38,12 @@ def token_from_header_or_cookie(request: Request, bearer: Optional[str] = Depend
         print("no token")
         raise HTTPException(status_code=401, detail="Not authenticated----")
     
-    print("using cookie")
     return tok
 
 def get_current_user(
     token: Annotated[str, Depends(token_from_header_or_cookie)],
     db: Annotated[Session, Depends(get_db)]
 ) -> User:    
-    print("getting current user")
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

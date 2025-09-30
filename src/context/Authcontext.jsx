@@ -1,8 +1,6 @@
 import { createContext, useState, useContext, useEffect, useMemo, useCallback } from "react";
 import { authMe, authLogin, authLogout } from "../lib/api";
 
-export let globalLink = "/dashboard";
-
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
