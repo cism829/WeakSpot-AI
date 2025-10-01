@@ -318,7 +318,6 @@ def list_my_quizzes(db: Session = Depends(get_db), user: User = Depends(get_curr
     - TODO: This filter uses Quiz.user_id, but creation uses owner_id.
         Align to your model field names (use Quiz.owner_id == user.id if that's the column).
     """
-    # TODO (likely fix): change Quiz.user_id -> Quiz.owner_id if your model uses owner_id
     quizzes = db.query(Quiz).filter(Quiz.user_id == user.id).order_by(Quiz.created_at.desc()).all()
 
     # Aggregate results to compute attempts/best/last_taken
