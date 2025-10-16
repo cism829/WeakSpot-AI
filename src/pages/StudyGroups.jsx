@@ -2,12 +2,14 @@ import React from "react";
 import Card from "../components/Card";
 import Tabs from "../components/Tabs";
 import { useState, useRef, ChangeEvent, useEffect } from "react"
+import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import Chat from "./Chat"
 
 export default function StudyGroups() {
     const [rooms, setRooms] = useState([]);
     const [selectedRoom, setSelectedRoom] = useState(null)
+    const { clientId } = useParams()
 
     useEffect(() => {
         fetch("http://localhost:8000/rooms")
@@ -17,7 +19,7 @@ export default function StudyGroups() {
     }, []);
 
     if (selectedRoom) {
-        return <Chat room={selectedRoom} />;
+        return <Chat room={selectedRoom} clientId ={clientId} />;
     }
 
     // const myGroups = (

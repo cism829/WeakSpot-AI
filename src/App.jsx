@@ -59,7 +59,7 @@ function App() {
                 {/* <Route path="/chat" element={<Chat />} /> */}
                 <Route path="/chat/:room/:clientId" element={<Chat />} />
 
-                <Route path="/studygroups" element={<StudyGroups />} />
+                <Route path="/studygroups/:clientId" element={<StudyGroups />} />
                 <Route path='/createroom' element = {<CreateRoom />} />
 
                 {/* Protected routes */}

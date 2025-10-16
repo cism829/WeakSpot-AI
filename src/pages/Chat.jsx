@@ -3,9 +3,11 @@ import { useParams } from "react-router-dom";
 
 
 
-function Chat() {
-    const { room, clientId } = useParams()
-    console.log(room, clientId); 
+function Chat({ room, clientId }) {
+    // const  = useParams()
+    // console.log(room, clientId); 
+    console.log("room number: ", room)
+    console.log("client id: ", clientId)
     // const [rooms, setRooms] = useState([])
     const [roomsMessages, setRoomsMessages] = useState({})
     const [input, setInput] = useState("")
