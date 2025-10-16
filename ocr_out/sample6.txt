@@ -1,5 +1,0 @@
-```
-Gravity- The force that attracts towards the centers of the earth is known as gravity. It's SI unit is N. It is denoted by W or 7. It is a vector quantity. The gravity of the earth depends on mass and radius. It acts towards the centre of the earth. 
-Free fall- When a body is falling freely, any under the effects of gravity without any external resistance it is known as free fall. A body falling in the vacuum is an example of free fall. 
-It is because when parachute expands, it covers more surface area due to the presence of atmosphere. air provides more upthrust so parachutist can land safely and not get hurt. In room there is no presence of air and parachutist can get hurt.
-```
