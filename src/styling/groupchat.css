@@ -81,3 +81,12 @@
     height: 40px;
     /* background-color: bisque; */
 }
+
+.create-room-con{
+
+}
+.room-form form{
+    display: flex;
+    flex-direction: column;
+    
+}

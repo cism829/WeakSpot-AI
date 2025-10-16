@@ -1,44 +1,53 @@
 import { useState, useRef, ChangeEvent, useEffect } from "react"
+import { useParams } from "react-router-dom";
+
 
 
 function Chat() {
-    const [rooms, setRooms] = useState([])
+    const { room, clientId } = useParams()
+    console.log(room, clientId); 
+    // const [rooms, setRooms] = useState([])
     const [roomsMessages, setRoomsMessages] = useState({})
     const [input, setInput] = useState("")
-    const [room, setRoom] = useState(null)
+    // const [room, setRoom] = useState(null)
     const [connected, setConnected] = useState(false)
     const [file, setFile] = useState(null);
-    const clientId = useRef(Math.floor(Math.random() * 10) + 1).current
+    // const clientId = useRef(Math.floor(Math.random() * 10) + 1).current
+    // const clientId =1;
     const ws = useRef(null)
 
 
-    useEffect(()=> {
-        fetch("http://localhost:8000/rooms")
-            .then(res => res.json())
-            .then(data => setRooms(data))
-            .catch(err => console.error("Failed to fetch rooms:", err));
-    }, [])
+    // useEffect(()=> {
+    //     fetch("http://localhost:8000/rooms")
+    //         .then(res => res.json())
+    //         .then(data => setRooms(data))
+    //         .catch(err => console.error("Failed to fetch rooms:", err));
+    // }, [])
    
     let messages = []
     if (room && roomsMessages[room]){
         messages = roomsMessages[room]
     }
 
-    const joinRoom = (roomNumber) => {
+    useEffect(() => {
+        if(!room){
+            return
+        }
+
         if (ws.current) {
             ws.current.close() // close previous room
         }
-        setRoom(roomNumber)
+        // setRoom(roomNumber)
         
-        if (!roomsMessages[roomNumber]){
-            setRoomsMessages(prev => {
-                const newMessages = {...prev}
-                newMessages[roomNumber] = []
-                return newMessages
-            })
-        }
+        setRoomsMessages(prev => {
+            if(!prev[room]){
+                return {...prev, [room]: []}
+            }
+                return prev
+            });
+        // }
 
-        ws.current = new WebSocket(`ws://localhost:8000/ws/${roomNumber}/${clientId}`)
+        ws.current = new WebSocket(`ws://localhost:8000/ws/${room}/${clientId}`)
 
         ws.current.onopen = () => setConnected(true)
         ws.current.onclose = () => setConnected(false)
@@ -47,15 +56,6 @@ function Chat() {
             let type = "other";
             let fileObj = null;
 
-            // if (text.startsWith("You:")) {
-            //     type = "user";
-            // } else if (text.includes("entered") || text.includes("left")) {
-            //     type = "notification";
-            // } else if (text.includes("/file:")) {
-            //     type = "file";
-            //     const parts = text.split(":"); // "/file:file_id:filename"
-            //     myFile = { id: parts[1], name: parts[2] };
-            // }
             if (text.includes("/file:")) {
                 console.log(text)
                 type = "file";
@@ -70,15 +70,14 @@ function Chat() {
                 type = "notification";
             }
 
-            setRoomsMessages(prev => {
-                const newMessages = {...prev}
-                newMessages[roomNumber] = [...newMessages[roomNumber], {text, type, file: fileObj }]
-                return newMessages
-            })
+            setRoomsMessages((prev) => ({
+                ...prev,
+                [room]: [...(prev[room] || []), {text, type, file: fileObj }],
+            }))
         };
-
-        ws.current.onerror = (err) => console.error("WebSocket error", err)
-    }
+        return () => ws.current?.close();
+        // ws.current.onerror = (err) => console.error("WebSocket error", err)
+    }, [room, clientId]);
 
     const sendMessage = (e) => {
         e.preventDefault()
@@ -122,80 +121,64 @@ function Chat() {
     }
 
     return (
-        <div>
-            <h1>Study Group Hubs</h1>
+    <div>
+        <div className="chat-container">
+            <h2>Your ID: <span id="ws-id">{clientId}</span></h2>
+            <h2>Current Room: {room}</h2>
 
-            <div className="rooms">
-                {rooms.map(r =>(
-                    <div className="room-box" key={r.room_id} >
-                        <h2>{r.room_name}</h2>
-                        <p>{r.description}</p>
-                        <button onClick={() => joinRoom(r.room_id)}>
-                            Join Room
-                        </button>
+            <div className="message">
+                <div className="message-box">
+                    <div id="messages">
+                        {messages.map((msg, idx) => {
+                            if (msg.type === "file"){
+                                return (
+                                    <p key={idx} className={msg.type}>
+                                        <a href={"http://localhost:8000/download/" + msg.file.id} download={msg.file.name}>
+                                            {msg.file.name}
+                                        </a>
+                                    </p>
+                                )
+                            } else {
+                                return (
+                                    <p key={idx} className={msg.type}>
+                                    {msg.text}
+                                    </p>
+                                )
+                                
+                            }
+                        })}
                     </div>
-                ))}
-            </div>
+                </div>
 
-            {room && (
-    <div className="chat-container">
-        <h2>Your ID: <span id="ws-id">{clientId}</span></h2>
-        <h2>Current Room: {rooms.find(r => r.room_id === room)?.room_name}</h2>
+                <div className="user-text">
+                    <form onSubmit={sendMessage}>
+                        <input className="user-chat"
+                            type="text"
+                            id="messageText"
+                            autoComplete="off"
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            disabled={!connected}
+                        />
+                        <button type="submit" disabled={!connected}>Send</button>
+                    </form>
+                    <input type="file" onChange={handleFile}/>
 
-        <div className="message">
-            <div className="message-box">
-                <div id="messages">
-                    {messages.map((msg, idx) => {
-                        if (msg.type === "file"){
-                            return (
-                                <p key={idx} className={msg.type}>
-                                    <a href={"http://localhost:8000/download/" + msg.file.id} download={msg.file.name}>
-                                        {msg.file.name}
-                                    </a>
-                                </p>
-                            )
-                        } else {
-                            return (
-                                <p key={idx} className={msg.type}>
-                                {msg.text}
-                                </p>
-                            )
-                            
-                        }
-                    })}
                 </div>
             </div>
-
-            <div className="user-text">
-                <form onSubmit={sendMessage}>
-                    <input className="user-chat"
-                        type="text"
-                        id="messageText"
-                        autoComplete="off"
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        disabled={!connected}
-                    />
-                    <button type="submit" disabled={!connected}>Send</button>
-                </form>
-                <input type="file" onChange={handleFile}/>
-
-            </div>
+            {file && (
+                        <div>
+                            <p>file name: {file.name}</p>
+                            <p>size: {(file.size / 1024).toFixed(2)} KB</p>
+                            <p>type: {file.type}</p>
+                            <button onClick={uploadFile}>
+                                Upload File
+                            </button>
+                        </div>
+                    )}
         </div>
-        {file && (
-                    <div>
-                        <p>file name: {file.name}</p>
-                        <p>size: {(file.size / 1024).toFixed(2)} KB</p>
-                        <p>type: {file.type}</p>
-                        <button onClick={uploadFile}>
-                            Upload File
-                        </button>
-                    </div>
-                )}
+
     </div>
-)}
-
-        </div>
     )
 }
 

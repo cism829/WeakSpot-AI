@@ -24,6 +24,7 @@ import Exam from "./pages/Exam";
 import Quiz from "./pages/Quiz";
 import QuizFeedback from "./pages/QuizFeedback";
 import Chat from "./pages/Chat"
+import CreateRoom from './pages/CreateRoom'
 
 
 // Protected Route wrapper
@@ -55,8 +56,11 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
 
-                <Route path="/chat" element={<Chat />} />
+                {/* <Route path="/chat" element={<Chat />} /> */}
+                <Route path="/chat/:room/:clientId" element={<Chat />} />
+
                 <Route path="/studygroups" element={<StudyGroups />} />
+                <Route path='/createroom' element = {<CreateRoom />} />
 
                 {/* Protected routes */}
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
