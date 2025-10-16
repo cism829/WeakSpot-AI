@@ -1,0 +1,497 @@
+
+/* === Create Room Styling === */
+.create-room-con {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  min-height: 100vh;
+  background-color: #0b1220;
+}
+
+.create-room-title {
+  color: #ffffff;
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 25px;
+}
+
+.room-form {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.room-form form {
+  background-color: #141c2e;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 30px 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-width: 500px;
+}
+
+/* Form Inputs */
+.room-form label {
+  display: flex;
+  flex-direction: column;
+  color: #d0d3dc;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.room-form input,
+.room-form select {
+  background-color: #1f2940;
+  border: 1px solid #2b3758;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e4e6eb;
+  font-size: 1rem;
+  margin-top: 6px;
+}
+
+.room-form input::placeholder {
+  color: #8d96a8;
+}
+
+.room-form input:focus,
+.room-form select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+
+/* Upload box */
+.upload-box {
+  width: 100%;
+  height: 180px;
+  background-color: #1f2940;
+  border: 2px dashed #4a90e2;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: 0.3s ease;
+}
+
+.upload-box:hover {
+  background-color: #1a2238;
+  border-color: #6aa7ff;
+}
+
+.upload-placeholder {
+  color: #8893aa;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Submit Button */
+.room-form button {
+  background-color: #4a90e2;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.room-form button:hover {
+  background-color: #3a7ad9;
+}
+
+
+/* === Study Groups Page Styling === */
+.container {
+  background-color: #0b1220;
+  min-height: 100vh;
+  color: #ffffff;
+  padding: 50px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Title and Button Area */
+.container h2 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.container a button {
+  background-color: #4a90e2;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 35px;
+}
+
+.container a button:hover {
+  background-color: #3a7ad9;
+  transform: translateY(-2px);
+}
+
+/* Room Cards Container */
+.rooms {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 30px;
+  width: 100%;
+}
+
+/* Individual Room Card */
+.room-box {
+  background-color: #141c2e;
+  border: 1px solid #1f2940;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  padding: 25px 30px;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.room-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Room Text */
+.room-box h2 {
+  color: #ffffff;
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+}
+
+.room-box p {
+  color: #a5adc4;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+}
+
+/* Join Room Button */
+.room-box button {
+  background-color: #4a90e2;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.room-box button:hover {
+  background-color: #3a7ad9;
+  transform: scale(1.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .container {
+    padding: 40px 20px;
+  }
+
+  .rooms {
+    justify-content: center;
+  }
+
+  .room-box {
+    width: 90%;
+    max-width: 300px;
+  }
+}
+
+/* === Room Image Styling === */
+.room-image {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 15px;
+}
+
+.room-placeholder {
+  width: 100%;
+  height: 140px;
+  border-radius: 12px;
+  background-color: #1f2940;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8d96a8;
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+}
+
+
+
+
+
+
+/* === Chat Page Styling === */
+.chat-container {
+  background-color: #0b1220;
+  color: #ffffff;
+  min-height: 100vh;
+  padding: 40px 60px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-container h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.chat-container h2 span {
+  color: #4a90e2;
+}
+
+/* === Message Area === */
+.message-box {
+  background-color: #141c2e;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  margin: 20px 0;
+  height: 65vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Individual message bubbles */
+.user, .other, .file, .notification {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.user {
+  align-self: flex-end;
+  background-color: #2a4b8d;
+  border: 1px solid #3b6ad4;
+  color: #ffffff;
+  border-radius: 14px 14px 0 14px;
+}
+
+.other {
+  align-self: flex-start;
+  background-color: #1f2940;
+  border: 1px solid #2b3758;
+  color: #e4e6eb;
+  border-radius: 14px 14px 14px 0;
+}
+
+.file {
+  align-self: center;
+  background-color: #1f2940;
+  border: 1px dashed #4a90e2;
+  color: #8ab4ff;
+}
+
+.file a {
+  color: #8ab4ff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.file a:hover {
+  text-decoration: underline;
+}
+
+.notification {
+  align-self: center;
+  font-style: italic;
+  color: #a5adc4;
+  font-size: 0.85rem;
+}
+
+/* === Input Section === */
+.user-text {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: #141c2e;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.user-text form {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+
+/* Input box */
+.user-chat {
+  flex-grow: 1;
+  background-color: #1f2940;
+  border: 1px solid #2b3758;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e4e6eb;
+  font-size: 1rem;
+}
+
+.user-chat:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+
+.user-text button {
+  background-color: #4a90e2;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-left: 10px;
+}
+
+.user-text button:hover {
+  background-color: #3a7ad9;
+}
+
+.file-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1f2940;
+  border: 1px solid #2b3758;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #8ab4ff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.file-upload-btn:hover {
+  background-color: #2b3758;
+  color: #b8d1ff;
+}
+
+.send-btn:hover {
+  background-color: #3a7ad9;
+}
+
+/* File preview section */
+.file-preview-box {
+  margin-top: 10px;
+  background-color: #141c2e;
+  border: 1px solid #2b3758;
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #e4e6eb;
+  width: fit-content;
+}
+
+.file-preview-box button {
+  background-color: #4a90e2;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.file-preview-box button:hover {
+  background-color: #3a7ad9;
+}
+
+/* File input and upload section */
+input[type="file"] {
+  color: #e4e6eb;
+  font-size: 0.85rem;
+  background-color: transparent;
+  border: none;
+}
+
+.file-upload-info {
+  margin-top: 15px;
+  background-color: #141c2e;
+  border: 1px solid #2b3758;
+  border-radius: 12px;
+  padding: 12px 18px;
+  width: fit-content;
+}
+
+.file-upload-info p {
+  font-size: 0.9rem;
+  margin: 4px 0;
+  color: #d0d3dc;
+}
+
+.file-upload-info button {
+  background-color: #4a90e2;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.file-upload-info button:hover {
+  background-color: #3a7ad9;
+}
+
+/* === Scrollbar Styling === */
+.message-box::-webkit-scrollbar {
+  width: 8px;
+}
+
+.message-box::-webkit-scrollbar-thumb {
+  background-color: #2b3758;
+  border-radius: 8px;
+}
+
+.message-box::-webkit-scrollbar-thumb:hover {
+  background-color: #4a90e2;
+}
