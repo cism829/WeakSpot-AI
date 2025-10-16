@@ -1,0 +1,31 @@
+Dr. E.F. Codd is an IBM researcher (who  
+first developed the relational data  
+model in 1970.  
+In 1985, Dr. Codd published a list of 12  
+rules that define an ideal relational  
+database and has provided a guideline  
+for the design of all relational database SIM.  
+
+Rule 1: The Information Rule  
+This rule simply requires that all data  
+should be presented in table form. This  
+is the basis of relational model.  
+
+Rule 2: Guaranteed Access Rule  
+Every single data element (value) is  
+guaranteed to be accessible logically with  
+a combination of table-name (table)  
+key (row value) and attribute-name (column value).  
+
+Rule 3: Systematic Treatment of Null Value  
+The Null values in a database must be given  
+a systematic and uniform treatment. This  
+is a very important rule because a Null can  
+be interpreted as one the following:  
+data's missing data... not known...  
+data's... or... (?).  
+
+Rule 4: Active Online Catalog  
+The structure description of the online database  
+must be stored in an online catalog known  
+as data dictionary... which can be...

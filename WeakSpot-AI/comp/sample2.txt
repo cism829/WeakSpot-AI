@@ -1,0 +1,13 @@
+Physical Data Independence Physical data independence can be
+defined as the capacity to change the internal schema without having to change the conceptual schema.
+If we do any changes in the storage size of the database system server, then the
+conceptual structure of the database will not be affected.
+It is the ability to modify the physical schema without causing application programs to be rewritten.
+Physical data independence is used to separate conceptual levels from the internal levels.
+It occurs at the logical interface levels.
+Logical Data Independence It is the ability to modify the
+conceptual schema without causing application program to be rewritten.
+Logical data Independence refers characteristic of being able to change the conceptual schema without having to change the external schema.
+Logical data independence is used to separate the external level from the conceptual.
+If we do any change in conceptual view of the data, then the user view of the data would not be affected.
+Logical data independency occurs at the user interface level.

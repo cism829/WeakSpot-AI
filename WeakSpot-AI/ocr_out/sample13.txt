@@ -1,0 +1,27 @@
+A Database Management System (DBMS)  
+is a Collection of interrelated data and  
+a set of programs to access those data.  
+
+- DBMS (Database Management System) is  
+used to organize the data in the form  
+of a table, "schema, view and report etc.  
+
+- The primary goal of a DBMS is to  
+provide a way to store and retrieve  
+database information that is both  
+convenient and efficient.  
+
+- Database Management System is the  
+Combination of two words:  
+
+- Database + Management System = DBMS  
+
+- A Database is a Collection of related  
+information stored so that it is  
+available to many users for  
+different purpose.  
+
+- Database Management System is a  
+Collection of programs that enables  
+Users to create and maintain  
+the database.

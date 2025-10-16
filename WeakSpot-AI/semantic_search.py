@@ -21,7 +21,7 @@ def main():
     ap = argparse.ArgumentParser(description="Semantic search over note_chunks (best chunk per note).")
     ap.add_argument("query", help="Search phrase")
     ap.add_argument("--k", type=int, default=10, help="Max number of parent notes to return")
-    ap.add_argument("--threshold", type=float, default=0.7, help="Max cosine distance (lower = closer)")
+    ap.add_argument("--threshold", type=float, default=0.7, help="max cosine distance (lower = closer)")
     args = ap.parse_args()
 
     client = OpenAI()

@@ -1,0 +1,13 @@
+h) binary(n) => it is a fixed width binary string data type. Its size can be up to 8000 bytes.
+i) varbinary => it is a variable width binary string data type. Its size can be up to 8000 bytes.
+j) image => It is also a variable width binary string data type. Its size can be up to 2GB.
+
+2) SQL Server Number Data types =>
+
+a) bit => it is an integer than can be 0, 1 or null.
+b) tinyint => It allows whole number from 0 to 255.
+c) smallint => it allows whole number between -32768 to 32767
+d) int => it allows whole number between -2,147,483,648 and 2,147,483,647
+e) bigint => 
+f) float(n) => 12.56
+g) real => It is a floating precision number data from -3.40e+38 to 3.40e+38.

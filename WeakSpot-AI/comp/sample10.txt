@@ -1,0 +1,10 @@
+SQL Server Data types
+1) SQL Server String Data type
+
+a) Char(n) => it is a fixed width character string data type. Its size can be up to 8000 characters.
+b) Varchar(n) => It is a variable width character string data type. Its size can be up to 800 characters.
+c) varchar(max) => it is a variable width character string data type. Its size can be up to 1,073,741,824 characters.
+d) text => it is a variable width character string data type. its size can be up to 2gb of text data.
+e) nchar => it is a fixed width Unicode string data type. Its size can be up to 4000 characters.
+f) nvarchar => it is a variable width Unicode string data type. Its size can be up to 4000 characters.
+g) ntext => it is a variable width Unicode string data type. Its size can be up to 2GB of text data.

@@ -1,0 +1,32 @@
+accessed by authorized users.
+Users can use the same query language to
+access the catalog which they used to access
+the database itself.
+
+Rule 5: Comprehensive Data Sub-Language Rule
+A database can only be accessed using
+a language having linear syntax that support
+data definition, data manipulation and
+transaction management operations.
+All commercial relational databases use forms
+of SQL as their supported language.
+
+Rule 6: View Updating Rule
+Data can be presented in different
+logical combinations called views
+each view should support the same full 
+range of data manipulation that has direct 
+access to a table available.
+
+Rule 7: High Level Insert, Update and Delete
+A database must support high-level
+insertion, updating, and deletion. This must
+not be limited to a single row, that is
+it must also support union, intersection
+and minus operations to yield sets of
+data records.
+
+Rule 8: Physical Data Independence
+The data stored in a database must be
+independent of the applications that access 
+the database

@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import psycopg2
 
-# still run if no openai, skip embedding
+# still run if no openai, but skip embedding
 USE_OPENAI = True
 try:
     from openai import OpenAI
@@ -21,6 +21,12 @@ def db():
         user=os.getenv("PGUSER", "postgres"),
         password=os.getenv("PGPASSWORD", "password"),
     )
+
+# look for ways to split text into chunks - newlines, sentences, words, bullets, 
+# or other punctuation
+# try to keep chunks semantically meaningful, avoid cutting in the middle of sentences
+# overlap chunks for context
+
 
 # detection for bulleted lists (dash/star/dot bullets)
 BULLET_RE = re.compile(r"^\s*(?:[-*•]\s+|\d+\.\s+)", re.MULTILINE)
@@ -92,12 +98,10 @@ def _wrap_by_chars(s: str, max_chars: int, overlap: int):
     return final
 
 def split_into_chunks(text: str, max_chars: int = 800, overlap: int = 80):
-    """
-    Robust splitter:
-      1) Split on blank lines (paragraphs).
-      2) If a paragraph is long, wrap by sentences; fallback to word-based wrapping.
-      3) If the whole note has no blank lines, group every 4 lines into a paragraph.
-    """
+    # Split on blank lines (paragraphs).
+    # If a paragraph is long, wrap by sentences; fallback to word-based wrapping.
+    # If the whole note has no blank lines, group every 4 lines into a paragraph.
+    
     text = (text or "").strip()
     if not text:
         return []

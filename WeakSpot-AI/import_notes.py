@@ -58,7 +58,7 @@ def main():
     )
     parser.add_argument(
         "--dir",
-        default=os.getenv("OCR_OUT_DIR", r"C:\Users\trevo\OneDrive\Desktop\490\ocr_out"),
+        default=os.getenv("OCR_OUT_DIR", r"C:\Users\trevo\OneDrive\Desktop\490\WeakSpot-AI\ocr_out"),
         help="Folder containing .txt files (one page per file)."
     )
     parser.add_argument(

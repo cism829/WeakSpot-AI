@@ -1,0 +1,36 @@
+Electromagnetic Induction
+           Faraday's and Lenz's Law
+Definition
+- Electromagnetic induction refers to the production of an induced 
+  EMF (electromagnetic force).
+  ↳ EMF can be thought of as a voltage or potential difference 
+     induced in a conductor as a result of the relative 
+     motion of a magnet and a coil.
+  ↳ If there is a closed circuit, an induced current will be 
+     produced.
+
+Motion of conductor/charges → Force on moving charges
+  ↳ creation of a potential separation of (F = qE)
+     (causes a current in an enclosed circuit)
+
+Faraday's Law
+Michael Faraday performed a series of experiments that 
+showed an EMF induced in a circuit when it 
+experiences change in magnetic flux.
+↳ Magnetic flux: A measure of the total number of 
+   magnetic field lines that pass through a chosen 
+   surface area.
+   Φ = B·A
+
+Faraday's law can be stated as follows:
+↳ An EMF is induced whenever a circuit experiences 
+   change of magnetic flux, and the EMF induced in a 
+   circuit is directly proportional to the rate of change 
+   of magnetic flux through the circuit.
+   ε = -ΔΦ/Δt
+   Induced EMF
+
+- The magnitude of ε varies with time.
+- The area of the circuit can change with time.
+- The angle between B and the normal to the plane 
+  changes with time.

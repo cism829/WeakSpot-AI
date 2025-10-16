@@ -1,0 +1,23 @@
+```
+3) SQL Server Date and Time Data Type -> 
+a) Datetime -> It is used to specify date and time 
+   Combination. It supports range from 
+   January 1, 1753, to December 31, 9999 with an 
+   accuracy of 3.33 milliseconds. . . . . . . 
+b) Datetime -> It is used to specify date and 
+   time Combination. It supports range 
+   from January 1, 2001 to December 31, 9999 
+   with an accuracy of 100 nanoseconds. 
+c) Date -> It is used to store date only. It 
+   supports range from January 1, 0001 to 
+   December 31, 9999 . . . . . . . . . . 
+d) Time -> It stores time only to an accuracy 
+   of 100 nanoseconds. . . . . . . . . . . 
+e) Timestamp -> It stores a unique number when 
+   a new row gets created or modified. 
+   the time stamp value is based upon an 
+   internal clock and does not correspond to 
+   real time. 
+   Each table may contain only one time 
+   stamp variable. 
+```

@@ -1,0 +1,1 @@
+sample9.jpg	Error code: 429 - {'error': {'message': 'Rate limit reached for gpt-4o-mini in organization org-RZxVP86tZoLP62fF7gxQHcen on tokens per min (TPM): Limit 200000, Used 200000, Requested 808. Please try again in 242ms. Visit https://platform.openai.com/account/rate-limits to learn more.', 'type': 'tokens', 'param': None, 'code': 'rate_limit_exceeded'}}
