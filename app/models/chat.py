@@ -18,6 +18,8 @@ class Rooms(Base):
     room_name = Column(String, unique=True)
     room_subject = Column(String)
     description = Column(String)
+    is_private = Column(String, default="public")
+    password = Column(String, nullable=True)
 
     messages = relationship("Messages", back_populates="room")
 
@@ -45,3 +47,13 @@ class File(Base):
     room_id = Column(Integer, ForeignKey("rooms.room_id"))
     user = relationship("User")
     room = relationship("Rooms")
+
+class RoomInfo(Base):
+    __tablename__ = "roominfo"
+    id = Column(Integer, primary_key=True, index=True)
+    room_id = Column(Integer, ForeignKey("rooms.room_id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    has_access = Column(Boolean, default=False)
+
+    room = relationship("Rooms")
+    user = relationship("User")

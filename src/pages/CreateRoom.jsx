@@ -1,73 +1,124 @@
-// CreateRoom.jsx
-import { color } from "chart.js/helpers";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function CreateRoom() {
-    const navigate = useNavigate();
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(e.currentTarget)
-        const roomData = {}
-        for(let [key, value] of formData.entries()){
-            roomData[key] = value;
-            console.log({ key, value })
-        }
+  const navigate = useNavigate();
+  const [imagePreview, setImagePreview] = useState(null);
+  const [privacy, setPrivacy] = useState("public")
 
-        try{
-            const response = await fetch("http://127.0.0.1:8000/rooms", {
-                method: "POST",
-                // headers: {"Content-Type": "application/json"},
-                body: formData
-            });
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview(null);
+    }
+  };
 
-            const data = await response.json();
-            console.log("Room was Created", data);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-            if(!response.ok){
-                alert('failed to make room')
-            } else{
-                // alert('room was created')
-                const clientId = Math.floor(Math.random() * 10) + 1;
-                console.log(data.room_id)
-                navigate("/chat/"+data.room_id+ "/" +clientId)
-            }
-        } catch(err){
-            console.error("error creating room: ", err)
-        }
-    };
-    
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/rooms", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        alert("Failed to create room");
+      } else {
+        const clientId = Math.floor(Math.random() * 10) + 1;
+        navigate(`/chat/${data.room_id}/${clientId}`);
+      }
+    } catch (err) {
+      console.error("Error creating room:", err);
+    }
+  };
 
   return (
     <div className="create-room-con">
-      <h2>Create a New Room</h2>
+      <h2 className="create-room-title">Create a New Room</h2>
       <div className="room-form">
         <form onSubmit={handleSubmit}>
-            <div className="form-image">
-                <input type="file"></input>
-                <p style={{ color: "blue" }}>Use File Uploaded component for this as well, I think it would look good here too!</p>
+          {/* IMAGE UPLOAD SECTION */}
+          <div className="form-group">
+            <label>Room Image</label>
+            <div
+              className="upload-box"
+              onClick={() => document.getElementById("room-image-input").click()}
+            >
+              {imagePreview ? (
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="image-preview"
+                />
+              ) : (
+                <div className="upload-placeholder">
+                  <p>Click to upload an image</p>
+                </div>
+              )}
             </div>
-            <label>
-                Title: 
-                <input type="text" name="room_name" placeholder="Title"></input>
-            </label>
-            <label>
-                Description: 
-                <input type="text" name="description"></input>
-            </label>
-            <label>
-                Subject: 
-                <input type="text" name="room_subject"></input>
-            </label>
-            <select name="privacy">
-                <option value="public">Public</option>
-                <option value="private">Private</option>
+
+            <input
+              id="room-image-input"
+              type="file"
+              name="image"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
+          </div>
+
+          {/* TEXT INPUTS */}
+          <label>
+            Title:
+            <input
+              type="text"
+              name="room_name"
+              placeholder="Enter title"
+              required
+            />
+          </label>
+
+          <label>
+            Description:
+            <input
+              type="text"
+              name="description"
+              placeholder="Brief description"
+            />
+          </label>
+
+          <label>
+            Subject:
+            <input
+              type="text"
+              name="room_subject"
+              placeholder="Enter subject"
+            />
+          </label>
+
+          <label>
+            Privacy:
+            <select name="is_private" onChange={(e) => setPrivacy(e.target.value)}value={privacy}>
+              <option value="public">Public</option>
+              <option value="private">Private</option>
             </select>
-            <button type="submit"> Submit Button </button>
+          </label>
+          {privacy === "private" && (
+            <label>
+              <input type="password" name="password" placeholder="Enter Password" required>
+              </input>
+            </label>
+          )}
+
+          <button type="submit">Create Room</button>
         </form>
       </div>
-      
     </div>
   );
 }

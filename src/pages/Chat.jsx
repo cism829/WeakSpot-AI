@@ -124,62 +124,81 @@ function Chat({ room, clientId }) {
 
     return (
     <div>
-        <div className="chat-container">
-            <h2>Your ID: <span id="ws-id">{clientId}</span></h2>
-            <h2>Current Room: {room}</h2>
+      <div className="chat-container">
+        <h2>
+          Your ID: <span id="ws-id">{clientId}</span>
+        </h2>
+        <h2>Current Room: {room}</h2>
 
-            <div className="message">
-                <div className="message-box">
-                    <div id="messages">
-                        {messages.map((msg, idx) => {
-                            if (msg.type === "file"){
-                                return (
-                                    <p key={idx} className={msg.type}>
-                                        <a href={"http://localhost:8000/download/" + msg.file.id} download={msg.file.name}>
-                                            {msg.file.name}
-                                        </a>
-                                    </p>
-                                )
-                            } else {
-                                return (
-                                    <p key={idx} className={msg.type}>
-                                    {msg.text}
-                                    </p>
-                                )
-                                
-                            }
-                        })}
-                    </div>
-                </div>
+        <div className="message">
+          <div className="message-box">
+            <div id="messages">
+              {messages.map((msg, idx) => {
+                if (msg.type === "file") {
+                  return (
+                    <p key={idx} className={msg.type}>
+                      <a
+                        href={
+                          "http://localhost:8000/download/" + msg.file.id
+                        }
+                        download={msg.file.name}
+                      >
+                        {msg.file.name}
+                      </a>
+                    </p>
+                  );
+                } else {
+                  return (
+                    <p key={idx} className={msg.type}>
+                      {msg.text}
+                    </p>
+                  );
+                }
+              })}
+            </div>
+          </div>
 
                 <div className="user-text">
-                    <form onSubmit={sendMessage}>
-                        <input className="user-chat"
-                            type="text"
-                            id="messageText"
-                            autoComplete="off"
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            disabled={!connected}
-                        />
-                        <button type="submit" disabled={!connected}>Send</button>
-                    </form>
-                    <input type="file" onChange={handleFile}/>
+            <form onSubmit={sendMessage}>
+              <input
+                className="user-chat"
+                type="text"
+                id="messageText"
+                autoComplete="off"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={!connected}
+                placeholder="Type a message..."
+              />
 
-                </div>
-            </div>
-            {file && (
-                        <div>
-                            <p>file name: {file.name}</p>
-                            <p>size: {(file.size / 1024).toFixed(2)} KB</p>
-                            <p>type: {file.type}</p>
-                            <button onClick={uploadFile}>
-                                Upload File
-                            </button>
-                        </div>
-                    )}
+              {/* File upload icon button */}
+              <label htmlFor="file-input" className="file-upload-btn">
+                +
+              </label>
+              <input
+                id="file-input"
+                type="file"
+                onChange={handleFile}
+                style={{ display: "none" }}
+              />
+
+              <button type="submit" className="send-btn" disabled={!connected}>
+                Send
+              </button>
+            </form>
+          </div>
         </div>
 
+        {/* File Preview Box */}
+        {file && (
+          <div className="file-preview-box">
+            <p>
+              <strong>{file.name}</strong> — {(file.size / 1024).toFixed(2)} KB
+            </p>
+            <button onClick={uploadFile}>Upload File</button>
+          </div>
+        )}
+      </div>
     </div>
     )
 }

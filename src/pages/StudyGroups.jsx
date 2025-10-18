@@ -2,11 +2,14 @@ import React from "react";
 import Card from "../components/Card";
 import Tabs from "../components/Tabs";
 import { useState, useRef, ChangeEvent, useEffect } from "react"
+import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import Chat from "./Chat"
 
 export default function StudyGroups() {
+    const navigate = useNavigate();
+
     const [rooms, setRooms] = useState([]);
     const [selectedRoom, setSelectedRoom] = useState(null)
     const { clientId } = useParams()
@@ -22,26 +25,48 @@ export default function StudyGroups() {
         return <Chat room={selectedRoom} clientId ={clientId} />;
     }
 
-    // const myGroups = (
-    //     <ul className="list">
-    //         <li>AP Chem – Unit 3</li>
-    //         <li>Calc II – Friday cram</li>
-    //     </ul>
-    // );
+    async function verifyAccess(roomId, userId, password) {
+        const formData = new FormData();
+        formData.append("user_id", userId);
+        formData.append("password", password);
 
-    // const publicGroups = (
-    //     <ul className="list">
-    //         <li>World History – open discussion</li>
-    //         <li>Physics Problem Solving</li>
-    //     </ul>
-    // );
+        const response = await fetch("http://127.0.0.1:8000/rooms/"+roomId+"/verify", {
+            method: "POST",
+            body: formData,
+        });
 
-    // const recommended = (
-    //     <ul className="list">
-    //         <li>Biology – Genetics</li>
-    //         <li>Statistics – Inference</li>
-    //     </ul>
-    // );
+        if (response.ok) {
+            return true;
+        } else {
+            const err = await response.json();
+            alert(err.detail || "Access denied");
+            return false;
+        }
+    }
+    const handleJoinRoom = async (room) => {
+        let accessRes = await fetch(`http://127.0.0.1:8000/rooms/${room.room_id}/access?user_id=${clientId}`);
+        let accessData = await accessRes.json();
+
+        if (accessData.is_private === "private" && !accessData.has_access) {
+            const password = prompt("Enter room password:");
+            const accessGranted = await verifyAccess(room.room_id, clientId, password);
+            if (!accessGranted) return; 
+
+             accessRes = await fetch(`http://127.0.0.1:8000/rooms/${room.room_id}/access?user_id=${clientId}`);
+             accessData = await accessRes.json(); 
+        }
+        if (!accessData.has_access) {
+            alert("You do not have access to this room.");
+            return;
+        }
+
+        console.log("Access data:", accessData);
+        console.log("room info: ", room.room_id)
+
+        setSelectedRoom(room.room_id);
+    };
+
+
 
     return (
         <div className="container">
@@ -66,9 +91,18 @@ export default function StudyGroups() {
                     <div className="room-box" key={r.room_id}>
                         <h2>{r.room_name}</h2>
                         <p>{r.description}</p>
-                        <button onClick={() => setSelectedRoom(r.room_id)}>
-                            Join Room
+                        <button onClick={() => handleJoinRoom(r)}>
+                        {/* <button onClick={async () => {
+                            if (r.privacy === "private") {
+                                const password = prompt("Enter room password:");
+                                const accessGranted = await verifyAccess(r.room_id, clientId, password);
+                                if (!accessGranted) return; // stop if password is wrong
+                            }
+                            setSelectedRoom(r.room_id);
+                        }}> */}
+                        Join Room
                         </button>
+
                     </div>
                 ))}
             </div>
