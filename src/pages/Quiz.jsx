@@ -1,189 +1,107 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import React, { useMemo, useState } from "react";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
 import { useAuth } from "../context/Authcontext";
-import { listMyQuizzes, getQuiz, startPractice, submitQuiz } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+
+const BANK = [
+    {
+        q: "Which process produces ATP in cellular respiration?",
+        choices: ["Glycolysis", "Transcription", "Replication", "Translation"],
+        answer: 0,
+        explain: "Glycolysis and later steps (Krebs + ETC) generate ATP; transcription/translation are gene expression."
+    },
+    {
+        q: "Derivative of sin(x) is…",
+        choices: ["cos(x)", "-cos(x)", "sin(x)", "-sin(x)"],
+        answer: 0,
+        explain: "d/dx[sin x] = cos x."
+    },
+    {
+        q: "In WWII, D-Day refers to…",
+        choices: [
+            "Attack on Pearl Harbor",
+            "Allied invasion of Normandy",
+            "Fall of Berlin",
+            "Signing of the Treaty of Versailles"
+        ],
+        answer: 1,
+        explain: "D-Day was the Allied invasion of Normandy, June 6, 1944."
+    }
+];
 
 export default function Quiz() {
-    const { id } = useParams();
     const nav = useNavigate();
-    const { user, setUser } = useAuth();
-
-    if (!id) return <ListMode />;
-    return <RunnerMode quizId={parseInt(id, 10)} user={user} setUser={setUser} nav={nav} />;
-}
-
-function ListMode() {
-    const [loading, setLoading] = useState(true);
-    const [err, setErr] = useState("");
-    const [practice, setPractice] = useState([]);
-
-    useEffect(() => {
-        let alive = true;
-        (async () => {
-            try {
-                const data = await listMyQuizzes();
-                if (!alive) return;
-                setPractice(data.practice || []);
-            } catch (e) {
-                if (alive) setErr(e?.message || "Failed to load quizzes.");
-            } finally {
-                if (alive) setLoading(false);
-            }
-        })();
-        return () => { alive = false; };
-    }, []);
-
-    if (loading) return <div className="container"><Card>Loading…</Card></div>;
-    if (err) return <div className="container"><Card tone="red">{err}</Card></div>;
-
-    return (
-        <div className="container">
-            <h2>My Practice Quizzes</h2>
-            <Card>
-                {practice.length === 0 && <div className="muted">No practice quizzes yet.</div>}
-                {practice.map(q => (
-                    <div className="table__row" key={q.id}>
-                        <div className="grow">
-                            <b>{q.title}</b> <span className="muted">· {q.difficulty}</span>
-                        </div>
-                        <div className="muted">Attempts: {q.attempts || 0}</div>
-                        <Link className="btn" to={`/quiz/${q.id}`}>Start</Link>
-                    </div>
-                ))}
-            </Card>
-        </div>
-    );
-}
-
-function RunnerMode({ quizId, user, setUser, nav }) {
-    const [loading, setLoading] = useState(true);
-    const [err, setErr] = useState("");
-    const [meta, setMeta] = useState(null);
-    const [items, setItems] = useState([]);
+    const { addCoins } = useAuth();
     const [i, setI] = useState(0);
     const [picked, setPicked] = useState(null);
-    const [typed, setTyped] = useState("");
+    const [answers, setAnswers] = useState([]);
 
-    useEffect(() => {
-        let alive = true;
-        (async () => {
-            try {
-                const q = await getQuiz(quizId);
-                if (!alive) return;
+    const total = BANK.length;
+    const pct = useMemo(() => ((i) / total) * 100, [i, total]);
 
-                // Block non-practice quizzes (just in case someone navigates directly)
-                if ((q.mode || "").toLowerCase() !== "practice") {
-                    setErr("This page only supports Practice mode.");
-                    return;
+    const current = BANK[i];
+
+    function pick(idx) {
+        setPicked(idx);
+    }
+
+    function next() {
+        if (picked == null) return;
+        const correct = picked === current.answer;
+        setAnswers(a => [...a, { pick: picked, correct }]);
+        setPicked(null);
+
+        if (i < total - 1) {
+            setI(i + 1);
+        } else {
+
+            const score = Math.round(answers.concat({ correct }).filter(x => x.correct).length / total * 100);
+            const reward = Math.max(5, Math.round(score / 10));
+            addCoins(reward);
+            nav("/quiz-feedback", {
+                state: {
+                    items: BANK.map((q, idx) => ({
+                        q: q.q,
+                        correct: (idx < answers.length ? answers[idx].correct : (picked === current.answer)),
+                        why: q.explain,
+                        your: (idx < answers.length ? q.choices[answers[idx].pick] : q.choices[picked]),
+                        correctAns: q.choices[q.answer]
+                    })),
+                    score, reward
                 }
-
-                setMeta({ id: q.id, title: q.title, difficulty: q.difficulty, mode: q.mode });
-                const norm = (q.items || []).map(it => ({
-                    id: it.id,
-                    type: it.type,
-                    question: it.question,
-                    choices: it.choices || null,
-                    explanation: it.explanation || ""
-                }));
-                setItems(norm);
-
-                try {
-                    const resp = await startPractice(quizId);
-                    if (resp?.awarded) {
-                        setUser({
-                            ...user,
-                            coins_balance: resp.coins_balance,
-                            coins_earned_total: resp.coins_earned_total
-                        });
-                    }
-                } catch (_) { }
-            } catch (e) {
-                if (alive) setErr(e?.message || "Failed to load quiz.");
-            } finally {
-                if (alive) setLoading(false);
-            }
-        })();
-        return () => { alive = false; };
-    }, [quizId]);
-
-    const count = items.length;
-    const at = items[i];
-
-    async function onSubmit() {
-        try {
-            const payload = { score: count, time_spent_sec: 0 };
-            const resp = await submitQuiz(quizId, payload);
-            if (resp?.total_points != null) {
-                setUser({
-                    ...user,
-                    total_points: resp.total_points,
-                    coins_balance: resp.coins_balance,
-                    coins_earned_total: resp.coins_earned_total
-                });
-            }
-            alert("Submitted! Returning to practice list.");
-            nav("/quiz");
-        } catch (e) {
-            alert(e?.message || "Submit failed");
+            });
         }
     }
 
-    if (loading) return <div className="container"><Card>Loading…</Card></div>;
-    if (err) return (
-        <div className="container">
-            <Card tone="red">
-                {err} <br />
-                <button className="btn btn--light" onClick={() => nav("/quiz")}>Back to Practice</button>
-            </Card>
-        </div>
-    );
-    if (!at) return <div className="container"><Card>Empty quiz.</Card></div>;
-
     return (
         <div className="container">
-            <h2>{meta?.title}</h2>
-            <div className="flex items-center gap-2">
-                <ProgressBar value={Math.min(i + 1, count || 1)} max={count || 1} />
-                <div className="muted" style={{ minWidth: 130, textAlign: "right" }}>
-                    Question {Math.min(i + 1, count)} / {count || 0}
-                </div>
-            </div>
-            <Card>
-                <div className="q">{at.question}</div>
-                {Array.isArray(at.choices) ? (
-                    <div className="choices">
-                        {at.choices.map((c, idx) => (
-                            <label key={idx} className={`choice ${picked === idx ? "is-picked" : ""}`}>
-                                <input
-                                    type="radio"
-                                    name="pick"
-                                    checked={picked === idx}
-                                    onChange={() => setPicked(idx)}
-                                />
+            <h2>🧪 Quick Quiz</h2>
+            <Card tone="blue" subtitle={`Question ${i + 1} of ${total}`}>
+                <div className="mt-sm"><ProgressBar value={pct} /></div>
+                <h3 style={{ marginTop: 12 }}>{current.q}</h3>
+
+                <div className="grid grid--2" style={{ marginTop: 12 }}>
+                    {current.choices.map((c, idx) => {
+                        const isSel = picked === idx;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => pick(idx)}
+                                className="choice"
+                                aria-pressed={isSel}
+                            >
+                                <span className="choice__bullet">{String.fromCharCode(65 + idx)}</span>
                                 <span>{c}</span>
-                            </label>
-                        ))}
-                    </div>
-                ) : (
-                    <textarea
-                        value={typed}
-                        onChange={(e) => setTyped(e.target.value)}
-                        placeholder="Type your answer..."
-                    />
-                )}
-                <div className="actions">
-                    <button className="btn btn--light" onClick={() => setI(Math.max(0, i - 1))} disabled={i === 0}>
-                        Back
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div className="mt">
+                    <button className="btn btn--primary" disabled={picked == null} onClick={next}>
+                        {i === total - 1 ? "Finish" : "Next"}
                     </button>
-                    {i < count - 1 ? (
-                        <button className="btn" onClick={() => setI(Math.min(count - 1, i + 1))}>
-                            Next
-                        </button>
-                    ) : (
-                        <button className="btn" onClick={onSubmit}>Submit</button>
-                    )}
                 </div>
             </Card>
         </div>

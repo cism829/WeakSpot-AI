@@ -1,76 +1,117 @@
-
 import { useAuth } from "../context/Authcontext";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { authRegister } from "../lib/api";
 
 function Register() {
+    const { login } = useAuth();
     const navigate = useNavigate();
     const [form, setForm] = useState({
-        username: "",
-        first_name: "",
-        last_name: "",
+        name: "",
         email: "",
-        password: ""
+        password: "",
+        grade: "",
+        role: "",
+        subjects: [],
     });
-    const [err, setErr] = useState("");
-    const [submitting, setSubmitting] = useState(false);
 
-    async function onSubmit(e) {
+    const [selectedSubjects, setSelectedSubjects] = useState([]);
+    const subjects = ["Math", "Science", "History", "English", "Computer Science"];
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const toggleSubject = (subject) => {
+        setSelectedSubjects((prev) =>
+            prev.includes(subject)
+                ? prev.filter((s) => s !== subject)
+                : [...prev, subject]
+        );
+    };
+
+    const handleSubmit = (e) => {
         e.preventDefault();
-        setErr("");
-        setSubmitting(true);
-        try {
-        await authRegister(form); // expect 200/201; no token needed
-        setForm({
-            username: "",
-            first_name: "",
-            last_name: "",
-            email: "",
-            password: ""
-        });
-        // redirect to login and pass a flag to show a success message there
-        navigate("/login", { state: { registered: true, emailPrefill: form.email } });
-        } catch (e) {
-        setErr(e.message || "Registration failed");
-        } finally {
-        setSubmitting(false);
+
+        const userData = {
+            name: form.name,
+            email: form.email,
+            grade: form.grade,
+            role: form.role,
+            subjects: selectedSubjects,
+        };
+
+        login(userData);
+
+        // Redirect based on role
+        if (form.role === "Professor") {
+            navigate("/professor/dashboard");
+        } else if (form.role === "Tutor") {
+            navigate("/tutor/dashboard");
+        } else {
+            navigate("/dashboard");
         }
-    }
+    };
+
 
     return (
         <div className="auth-page">
             <div className="auth-card">
-                <h2>Create account</h2>
-                {err && <div className="error">{err}</div>}
-                <form onSubmit={onSubmit} className="form">
-                    <label className="field">
-                        <span>Username</span>
-                        <input value={form.username} onChange={e=>setForm({...form, username:e.target.value})} required />
-                    </label>
-                    <label className="field">
-                        <span>First name</span>
-                        <input value={form.first_name} onChange={e=>setForm({...form, first_name:e.target.value})} required />
-                    </label>
-                    <label className="field">
-                        <span>Last name</span>
-                        <input value={form.last_name} onChange={e=>setForm({...form, last_name:e.target.value})} required />
-                    </label>
-                    <label className="field">
+                <h2>Create Account</h2>
+                <form onSubmit={handleSubmit} className="form">
+                    <div className="field">
+                        <span>Name</span>
+                        <input name="name" value={form.name} onChange={handleChange} required />
+                    </div>
+                    <div className="field">
                         <span>Email</span>
-                        <input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} required />
-                    </label>
-                    <label className="field">
+                        <input type="email" name="email" value={form.email} onChange={handleChange} required />
+                    </div>
+                    <div className="field">
                         <span>Password</span>
-                        <input type="password" value={form.password} onChange={e=>setForm({...form, password:e.target.value})} required />
-                    </label>
+                        <input type="password" name="password" value={form.password} onChange={handleChange} required />
+                    </div>
+                    <div className="field">
+                        <span>Grade Level</span>
+                        <select name="grade" value={form.grade} onChange={handleChange} required>
+                            <option value="">Select...</option>
+                            <option value="Middle School">Middle School</option>
+                            <option value="High School">High School</option>
+                            <option value="College">College</option>
+                        </select>
+                    </div>
+                    <div className="field">
+                        <span>Role</span>
+                        <select name="role" value={form.role} onChange={handleChange} required>
+                            <option value="">Select...</option>
+                            <option value="Student">Student</option>
+                            <option value="Professor">Professor</option>
+                            <option value="Tutor">Tutor</option>
+                        </select>
+                    </div>
+
+
+                    <div className="field">
+                        <span>Subjects</span>
+                        <div className="subjects">
+                            {subjects.map((subject) => (
+                                <button
+                                    key={subject}
+                                    type="button"
+                                    className={`subject-pill ${selectedSubjects.includes(subject) ? "selected" : ""}`}
+                                    onClick={() => toggleSubject(subject)}
+                                >
+                                    {subject}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <button className="btn btn--primary">Register</button>
-                    <p className="muted mt">Already have an account? <Link to="/login">Sign in</Link></p>
                 </form>
             </div>
         </div>
     );
 }
+
 export default Register;
-
-
