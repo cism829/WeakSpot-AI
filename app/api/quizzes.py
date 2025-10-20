@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 from typing import List, Dict, Any
 import json
+import os
+
 from app.core.config import settings
 from app.core.db import get_db
 from app.core.security import get_current_user
@@ -12,44 +14,40 @@ from app.models.quiz_item import QuizItem
 from app.models.result import Result
 from app.models.attempt import Attempt
 from app.schemas.quiz_gen import GenerateWithNote, GenerateWithoutNote, QuizOut, QuizItemOut, SubmitPayload
-from openai import OpenAI
+from app.schemas.quiz import QuizItems  # Pydantic schema for structured output
+
+# ---- Gemini SDK ----
+from google import genai
+from google.genai import types as gtypes
+from google.genai import errors as genai_errors
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/quizzes", tags=["quizzes"])
 
+# ---------- Gemini helpers ----------
 
-# ---------- OpenAI helpers ----------
-
-def _assert_openai():
+def _assert_gemini():
     """
-    Guard to ensure an API key is configured before calling OpenAI.
-    Raises a 400 (client) error if missing to avoid 500s and clarify misconfig.
+    Ensure a Gemini API key is configured.
+    Accept either settings.GEMINI_API_KEY or GOOGLE_API_KEY env var.
     """
-    if not settings.OPENAI_API_KEY:
-        raise HTTPException(status_code=400, detail="OpenAI API key not configured")
-
+    if not (getattr(settings, "GEMINI_API_KEY", None) or os.getenv("GOOGLE_API_KEY")):
+        raise HTTPException(status_code=400, detail="Gemini API key not configured")
 
 def _build_system():
     """
-    System message for the model to enforce concise, unambiguous items
-    and JSON-only output (the user message further constrains structure).
+    System instruction for concise, unambiguous items and JSON-only output.
     """
     return (
         "You are a helpful tutor that writes concise, unambiguous assessment items. "
-        "Always return STRICT JSON that matches the provided schema."
+        "Always return STRICT JSON that matches the provided schema. "
+        "Do not include any explanations outside of JSON."
     )
 
-
-def _build_user_prompt(subject: str, difficulty: str, n: int, types: List[str], note_text: str | None = None) -> str:
+def _build_user_prompt(subject: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
     """
-    Build a detailed user message instructing the model to produce a strict JSON object:
-    {
-        "items": [ ... n items ... ]
-    }
-    - Each item is one of the allowed type templates below.
-    - If note_text is provided, it is included as contextual content.
-    - We use doubled-braces {{ }} so f-string formatting doesn't treat braces as placeholders.
+    Build a detailed instruction for the model.
     """
-    # Canonical JSON templates describing each item "shape"
     type_desc = {
         "mcq": (
             '{ "type":"mcq", "question":"...", "choices":["A","B","C","D"], '
@@ -69,16 +67,13 @@ def _build_user_prompt(subject: str, difficulty: str, n: int, types: List[str], 
         ),
     }
 
-    # Restrict the "one_of" list to the requested types only
-    allowed_join = ", ".join(type_desc[t] for t in types)
+    # Only include templates for requested types that we know
+    allowed_join = ", ".join(type_desc[t] for t in item_types if t in type_desc)
 
-    # Optional notes context block—only appended if provided
     note_clause = f"\nContext (from student notes):\n{note_text}\n" if note_text else ""
-    types_list = ", ".join(types)
+    types_list = ", ".join(item_types)
 
-    # JSON "schema-like" hint for the LLM. Doubled braces render literal braces.
-    # Only {allowed_join} is interpolated by the f-string.
-    schema = (
+    schema_hint = (
         "{{\n"
         '  "items": [\n'
         "    {{ \"one_of\": [\n"
@@ -88,12 +83,11 @@ def _build_user_prompt(subject: str, difficulty: str, n: int, types: List[str], 
         "}}\n"
     )
 
-    # Final composed instruction
     return (
         f"Create {n} {difficulty} {subject} questions across these item types: {types_list}.\n"
         f"{note_clause}"
         "Return STRICT JSON with this schema:\n"
-        f"{schema}\n"
+        f"{schema_hint}\n"
         "Rules:\n"
         f"- Questions must be solvable without external info beyond common {subject} knowledge and any provided context.\n"
         "- MCQ uses exactly 4 choices.\n"
@@ -101,102 +95,141 @@ def _build_user_prompt(subject: str, difficulty: str, n: int, types: List[str], 
         "- Keep explanations brief, 1–2 sentences max.\n"
     )
 
+def _coerce_item(it: dict) -> dict | None:
+    t = (it.get("type") or "").lower().replace("-", "_")
+    if t in {"multiple_choice", "multiplechoice", "mc"}:
+        t = "mcq"
+    if t in {"truefalse", "true_or_false", "tf"}:
+        t = "true_false"
 
-def _openai_generate(subject: str, difficulty: str, n: int, types: List[str], note_text: str | None = None):
-    """
-    Call OpenAI Chat Completions to generate items; then parse and normalize them
-    into a consistent internal structure suitable for persistence.
+    q = (it.get("question") or "").strip()
+    if not q:
+        return None
 
-    Returns: List[dict] items with keys:
-        - type: "mcq" | "short_answer" | "fill_blank" | "true_false"
-        - question: str
-        - choices: Optional[List[str]] (MCQ only; trimmed to 4)
-        - answer_index: Optional[int] (MCQ only)
-        - answer_text: Optional[str] (non-MCQ)
-        - explanation: Optional[str]
+    exp = (it.get("explanation") or "").strip() or None
+
+    if t == "mcq":
+        choices = it.get("choices") or it.get("options") or []
+        if isinstance(choices, str):
+            choices = [c.strip() for c in choices.split("|") if c.strip()]
+        if not isinstance(choices, list) or len(choices) < 2:
+            return None
+        choices = choices[:4]  # enforce max 4
+
+        # Determine answer_index robustly
+        orig_ai = it.get("answer_index")
+        ai = None
+        if orig_ai is not None:
+            try:
+                ai = int(orig_ai)
+            except Exception:
+                ai = None
+
+        if ai is None:
+            ans = it.get("answer") or it.get("answer_text")
+            if isinstance(ans, str):
+                letter_map = {"a": 0, "b": 1, "c": 2, "d": 3}
+                if ans.lower() in letter_map:
+                    ai = letter_map[ans.lower()]
+                elif ans in choices:
+                    ai = choices.index(ans)
+
+        # Convert 1-based to 0-based if it looks like 1..len
+        if isinstance(orig_ai, int) and 1 <= orig_ai <= len(choices):
+            ai = orig_ai - 1
+
+        if ai is None:
+            ai = 0
+        ai = max(0, min(ai, len(choices) - 1))
+
+        return {
+            "type": "mcq",
+            "question": q,
+            "choices": choices,
+            "answer_index": ai,
+            "answer_text": None,
+            "explanation": exp,
+        }
+
+    if t in {"short_answer", "fill_blank", "true_false"}:
+        ans = it.get("answer_text")
+        if ans is None and "answer" in it:
+            ans = it["answer"]
+        if t == "true_false":
+            if ans is True:
+                ans = "True"
+            if ans is False:
+                ans = "False"
+        ans = (str(ans)).strip() if ans is not None else ""
+        if not ans:
+            return None
+        return {
+            "type": t,
+            "question": q,
+            "choices": None,
+            "answer_index": None,
+            "answer_text": ans,
+            "explanation": exp,
+        }
+
+    return None
+
+def _gemini_generate(subject: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None):
     """
-    _assert_openai()
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    Call Gemini to generate items; then parse and normalize them.
+    """
+    _assert_gemini()
+    api_key = getattr(settings, "GEMINI_API_KEY", None) or os.getenv("GOOGLE_API_KEY")
+    model_name = getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
+
+    client = genai.Client(api_key=api_key)
 
     try:
-        # Ask for strict JSON with response_format={"type": "json_object"} to reduce parsing issues
-        resp = client.chat.completions.create(
-            model=settings.OPENAI_MODEL or "gpt-4o-mini",
-            temperature=0.4,  # mild creativity; keeps answers deterministic enough
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _build_system()},
-                {"role": "user", "content": _build_user_prompt(subject, difficulty, n, types, note_text)},
-            ],
-            timeout=60,  # seconds
+        cfg = gtypes.GenerateContentConfig(
+            temperature=0.4,
+            max_output_tokens=2048,
+            system_instruction=_build_system(),
+            response_mime_type="application/json",  # JSON-only
+            response_schema=QuizItems,              # Pydantic schema -> structured output
         )
 
-        # Extract and JSON-parse the content
-        content = resp.choices[0].message.content or "{}"
-        data = json.loads(content)
+        user_prompt = _build_user_prompt(subject, difficulty, n, item_types, note_text)
 
-        # Expect an object with an "items" array
-        items = data.get("items", [])
-        if not isinstance(items, list) or not items:
-            raise ValueError("No items produced")
+        resp = client.models.generate_content(
+            model=model_name,
+            contents=user_prompt,  # string is fine; SDK wraps it into Content/Part
+            config=cfg,
+        )
 
-        # Normalize into our internal structure
-        out = []
-        for it in items[:n]:
-            t = it.get("type", "mcq")
-            q = (it.get("question") or "").strip()
-            exp = (it.get("explanation") or "").strip()
-            if not q:
-                # Skip empty questions
-                continue
+        # Prefer structured parse when response_schema is set
+        data = getattr(resp, "parsed", None)
+        if isinstance(data, BaseModel):
+            data = data.model_dump()
+        elif data is None:
+            data = json.loads(resp.text or "{}")
 
-            if t == "mcq":
-                # For MCQ, ensure we have at least 2 choices (preferably 4)
-                ch = it.get("choices") or []
-                if not isinstance(ch, list) or len(ch) < 2:
-                    continue
-                # Clamp answer_index safely within range
-                ai = it.get("answer_index", 0)
-                try:
-                    ai = int(ai)
-                except Exception:
-                    ai = 0
-                ai = max(0, min(ai, len(ch) - 1))
+        raw_items = data.get("items") if isinstance(data, dict) else None
+        if raw_items is None:
+            raw_items = data.get("questions") if isinstance(data, dict) else []
+        if isinstance(raw_items, dict):  # nested again
+            raw_items = raw_items.get("items", [])
 
-                out.append({
-                    "type": "mcq",
-                    "question": q,
-                    "choices": ch[:4],  # enforce max 4 choices
-                    "answer_index": ai,
-                    "answer_text": None,
-                    "explanation": exp
-                })
-
-            elif t in ("short_answer", "fill_blank", "true_false"):
-                # Non-MCQ types must provide an answer_text
-                ans = (it.get("answer_text") or "").strip()
-                if not ans:
-                    continue
-                out.append({
-                    "type": t,
-                    "question": q,
-                    "choices": None,
-                    "answer_index": None,
-                    "answer_text": ans,
-                    "explanation": exp
-                })
-
-        # Debug log for server console
-        print(f"Normalized items: {out}")
+        out: List[dict] = []
+        for it in (raw_items or [])[:n]:
+            norm = _coerce_item(it)
+            if norm:
+                out.append(norm)
 
         if not out:
-            raise ValueError("All items invalid after normalization")
+            print("DEBUG raw model text:", (resp.text or "")[:1000])
+            raise HTTPException(status_code=502, detail="Gemini returned items, but none were usable after normalization")
+
         return out
 
+    except genai_errors.APIError as e:
+        raise HTTPException(status_code=e.code or 502, detail=f"Gemini error: {e.message}")
     except Exception as e:
-        # Wrap any error as a 502 to indicate upstream (OpenAI) issue to the client
-        raise HTTPException(status_code=502, detail=f"OpenAI error: {e}")
-
+        raise HTTPException(status_code=502, detail=f"Gemini error: {e}")
 
 # ---------- Create Quiz + persist items ----------
 
@@ -204,123 +237,117 @@ def _persist_quiz_and_items(
     db: Session, *, user_id: int, note_id: int | None, subject: str,
     difficulty: str, mode: str, types: List[str], items: List[dict], source: str
 ) -> int:
-    """
-    Create a Quiz row and its associated QuizItem rows in a single transaction.
-
-    Returns: newly created quiz ID.
-    """
     q = Quiz(
-        owner_id=user_id,  # NOTE: uses owner_id here
+        user_id=user_id,
         note_id=note_id,
         title=f"{subject.title()} Quiz",
         difficulty=difficulty,
         mode=mode,
         source=source,
-        types=",".join(types) if types else None
+        types=",".join(types) if types else None,
     )
     db.add(q)
-    db.flush()  # obtains q.id without committing yet
+    db.flush()
 
-    # Persist each generated item
     for it in items:
-        db.add(QuizItem(
-            quiz_id=q.id,
-            type=it["type"],
-            question=it["question"],
-            choices=(json.dumps(it["choices"]) if it.get("choices") else None),
-            answer_index=it.get("answer_index"),
-            answer_text=it.get("answer_text"),
-            explanation=it.get("explanation"),
-        ))
+        db.add(
+            QuizItem(
+                quiz_id=q.id,
+                type=it["type"],
+                question=it["question"],
+                choices=(json.dumps(it["choices"]) if it.get("choices") else None),
+                answer_index=it.get("answer_index"),
+                answer_text=it.get("answer_text"),
+                explanation=it.get("explanation"),
+            )
+        )
 
-    # Commit both quiz and items atomically
     db.commit()
     return q.id
-
 
 # ---------- Endpoints ----------
 
 @router.post("/generate-ai")
-def generate_ai(payload: GenerateWithoutNote, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def generate_ai(
+    payload: GenerateWithoutNote,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
     """
-    Generate a quiz using AI *without* note context, then persist it.
-    Body: GenerateWithoutNote (subject, difficulty, num_items, types, mode, user_id).
-    Response: {"quiz_id": int}
+    Generate a quiz using Gemini *without* note context, then persist it.
     """
-    items = _openai_generate(
+    items = _gemini_generate(
         subject=payload.subject,
         difficulty=payload.difficulty,
         n=payload.num_items,
-        types=payload.types,
-        note_text=None
+        item_types=payload.types,
+        note_text=None,
     )
-    print(1)  # debug marker
-
     quiz_id = _persist_quiz_and_items(
         db,
-        user_id=payload.user_id, note_id=None, subject=payload.subject,
-        difficulty=payload.difficulty, mode=payload.mode, types=payload.types,
-        items=items, source="ai_general"
+        user_id=user.id,
+        note_id=None,
+        subject=payload.subject,
+        difficulty=payload.difficulty,
+        mode=payload.mode,
+        types=payload.types,
+        items=items,
+        source="ai_general",
     )
-    print(2)  # debug marker
-
     return {"quiz_id": quiz_id}
-
 
 @router.post("/generate-ai-from-note")
-def generate_ai_from_note(payload: GenerateWithNote, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def generate_ai_from_note(
+    payload: GenerateWithNote,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
     """
-    Generate a quiz using AI *with* note context (from a notes table).
-    - Reads note content via a parameterized raw SQL SELECT.
-    - Consider replacing with ORM if a Note model exists.
+    Generate a quiz using Gemini *with* note context (from a notes table).
     """
-    # Fetch note content (parameterized to avoid SQL injection)
-    note = db.execute("SELECT content FROM notes WHERE id=:nid", {"nid": payload.note_id}).fetchone()
+    note = db.execute(text("SELECT content FROM notes WHERE id=:nid"), {"nid": payload.note_id}).fetchone()
     note_text = note[0] if note else ""
 
-    # Generate with note context
-    items = _openai_generate(
+    items = _gemini_generate(
         subject=payload.subject,
         difficulty=payload.difficulty,
         n=payload.num_items,
-        types=payload.types,
-        note_text=note_text or None
+        item_types=payload.types,
+        note_text=note_text or None,
     )
 
-    # Persist and return quiz id
     quiz_id = _persist_quiz_and_items(
         db,
-        user_id=payload.user_id, note_id=payload.note_id, subject=payload.subject,
-        difficulty=payload.difficulty, mode=payload.mode, types=payload.types,
-        items=items, source="ai_note"
+        user_id=user.id,
+        note_id=payload.note_id,
+        subject=payload.subject,
+        difficulty=payload.difficulty,
+        mode=payload.mode,
+        types=payload.types,
+        items=items,
+        source="ai_note",
     )
     return {"quiz_id": quiz_id}
 
-
 def _quiz_to_dict(q: Quiz) -> Dict[str, Any]:
-    """
-    Utility to convert a Quiz ORM object into a simple dict.
-    NOTE: Not used by the endpoints below (kept for convenience/future use).
-    """
     return {
-        "id": q.id, "title": q.title, "difficulty": q.difficulty, "mode": q.mode,
-        "source": q.source, "types": q.types, "created_at": str(q.created_at)
+        "id": q.id,
+        "title": q.title,
+        "difficulty": q.difficulty,
+        "mode": q.mode,
+        "source": q.source,
+        "types": q.types,
+        "created_at": str(q.created_at),
     }
-
 
 @router.get("/mine")
 def list_my_quizzes(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """
     List the current user's quizzes split into "practice" and "exam",
     plus attach simple stats (attempt count, best score, last taken).
-
-    IMPORTANT:
-    - TODO: This filter uses Quiz.user_id, but creation uses owner_id.
-        Align to your model field names (use Quiz.owner_id == user.id if that's the column).
     """
     quizzes = db.query(Quiz).filter(Quiz.user_id == user.id).order_by(Quiz.created_at.desc()).all()
 
-    # Aggregate results to compute attempts/best/last_taken
     stats = (
         db.query(
             Result.quiz_id,
@@ -333,17 +360,15 @@ def list_my_quizzes(db: Session = Depends(get_db), user: User = Depends(get_curr
         .all()
     )
 
-    # Map quiz_id -> stats dict for quick lookup
     s_map = {
         qid: {
             "attempts": att,
             "best_score": best,
-            "last_taken_at": str(last) if last else None
+            "last_taken_at": str(last) if last else None,
         }
         for (qid, att, best, last) in stats
     }
 
-    # Pack a quiz row into response-friendly dict with attached stats
     def pack(q: Quiz) -> Dict[str, Any]:
         st = s_map.get(q.id, {})
         return {
@@ -357,59 +382,57 @@ def list_my_quizzes(db: Session = Depends(get_db), user: User = Depends(get_curr
             "last_taken_at": st.get("last_taken_at"),
         }
 
-    # Split by mode, default to practice when mode is missing or not "exam"
     practice, exam = [], []
     for q in quizzes:
         (exam if (q.mode or "").lower() == "exam" else practice).append(pack(q))
 
     return {"practice": practice, "exam": exam}
 
-
 @router.get("/{quiz_id}", response_model=QuizOut)
 def get_quiz(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """
     Fetch a single quiz (owned by current user) with its items.
-    Returns a QuizOut Pydantic model (items include parsed choices).
     """
-    # IMPORTANT / same note as above about owner_id vs user_id
     q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
     return QuizOut(
-        id=q.id, title=q.title, difficulty=q.difficulty, mode=q.mode, created_at=str(q.created_at),
+        id=q.id,
+        title=q.title,
+        difficulty=q.difficulty,
+        mode=q.mode,
+        created_at=str(q.created_at),
         items=[
             QuizItemOut(
-                id=qi.id, question=qi.question, type=qi.type,
+                id=qi.id,
+                question=qi.question,
+                type=qi.type,
                 choices=(json.loads(qi.choices) if qi.choices else None),
-                explanation=qi.explanation
+                explanation=qi.explanation,
             )
             for qi in q.items
-        ]
+        ],
     )
-
 
 @router.post("/{quiz_id}/start")
 def start_practice(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """
     Start a practice attempt. First attempt awards coins; subsequent calls do not.
-    Uses settings.COIN_PER_QUIZ to increment both coins_balance and coins_earned_total.
     """
-    # IMPORTANT / same note as above about owner_id vs user_id
     q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    # If an attempt already exists for this user/quiz, don't award coins again
     existed = db.query(Attempt).filter(Attempt.user_id == user.id, Attempt.quiz_id == quiz_id).first()
     if existed:
         return {
-            "ok": True, "awarded": False,
+            "ok": True,
+            "awarded": False,
             "coins_balance": user.coins_balance,
-            "coins_earned_total": user.coins_earned_total
+            "coins_earned_total": user.coins_earned_total,
         }
 
-    # Create first attempt and award coins
     att = Attempt(quiz_id=quiz_id, user_id=user.id)
     db.add(att)
     user.coins_earned_total = (user.coins_earned_total or 0) + settings.COIN_PER_QUIZ
@@ -417,11 +440,11 @@ def start_practice(quiz_id: int, db: Session = Depends(get_db), user: User = Dep
     db.commit()
 
     return {
-        "ok": True, "awarded": True,
+        "ok": True,
+        "awarded": True,
         "coins_balance": user.coins_balance,
-        "coins_earned_total": user.coins_earned_total
+        "coins_earned_total": user.coins_earned_total,
     }
-
 
 @router.post("/{quiz_id}/submit")
 def submit_quiz(quiz_id: int, payload: SubmitPayload, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -431,23 +454,19 @@ def submit_quiz(quiz_id: int, payload: SubmitPayload, db: Session = Depends(get_
         - Increment user's total_points by rounded score
         - Return updated totals (coins are unchanged here)
     """
-    # IMPORTANT / same note as above about owner_id vs user_id
     q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    # Save result
     r = Result(quiz_id=quiz_id, user_id=user.id, score=payload.score, time_spent_sec=payload.time_spent_sec)
     db.add(r)
 
-    # Add score to total points (rounded to int)
     user.total_points = (user.total_points or 0) + int(round(payload.score or 0))
-
     db.commit()
 
     return {
         "ok": True,
         "coins_earned_total": user.coins_earned_total,
         "coins_balance": user.coins_balance,
-        "total_points": user.total_points
+        "total_points": user.total_points,
     }

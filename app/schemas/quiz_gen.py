@@ -36,4 +36,23 @@ class SubmitPayload(BaseModel):
     score: float
     time_spent_sec: int = 0
 
+class UserMCQ(BaseModel):
+    item_id: int
+    type: Literal["mcq"]
+    choice_index: int
 
+class UserTF(BaseModel):
+    item_id: int
+    type: Literal["true_false"]
+    text: str  # "True"/"False" or truthy words
+
+class UserFill(BaseModel):
+    item_id: int
+    type: Literal["fill_blank", "short_answer"]
+    text: str
+
+UserAnswer = UserMCQ | UserTF | UserFill
+
+class GradePayload(BaseModel):
+    answers: List[UserAnswer]
+    time_spent_sec: int = 0

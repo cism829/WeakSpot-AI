@@ -144,7 +144,7 @@ export default function Profile() {
                 <Card title="Security & Account">
                     <ul className="list">
                         <li>Email verified: <b>{user?.email_verified ? "Yes" : "No"}</b></li>
-                        <li>Member since: <span className="muted">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}</span></li>
+                        <li>Member since: <span className="muted">{user.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}</span></li>
                     </ul>
                     <div className="muted" style={{ marginTop: 8 }}>
                         Need changes to your name or email? Contact support or add an edit form here.

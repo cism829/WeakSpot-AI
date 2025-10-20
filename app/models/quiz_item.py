@@ -10,7 +10,8 @@ class QuizItem(Base):
     quiz_id = Column(Integer, ForeignKey("quizzes.id", ondelete="CASCADE"))
     question = Column(Text, nullable=False)
     choices = Column(Text, nullable=True)  # JSON string
-    answer = Column(Text, nullable=False)
+    answer_index = Column(Integer, nullable=True)
+    answer_text = Column(Text, nullable=True)
     type = Column(String(50), default="mcq")  # mcq | tf | fill
     explanation = Column(Text, nullable=True)
 

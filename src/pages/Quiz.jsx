@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
 import { useAuth } from "../context/Authcontext";
@@ -18,7 +18,6 @@ function ListMode() {
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState("");
     const [practice, setPractice] = useState([]);
-    const [exam, setExam] = useState([]);
 
     useEffect(() => {
         let alive = true;
@@ -27,7 +26,6 @@ function ListMode() {
                 const data = await listMyQuizzes();
                 if (!alive) return;
                 setPractice(data.practice || []);
-                setExam(data.exam || []);
             } catch (e) {
                 if (alive) setErr(e?.message || "Failed to load quizzes.");
             } finally {
@@ -40,26 +38,21 @@ function ListMode() {
     if (loading) return <div className="container"><Card>Loading…</Card></div>;
     if (err) return <div className="container"><Card tone="red">{err}</Card></div>;
 
-    const Section = ({ title, rows }) => (
-        <Card title={title}>
-            {rows.length === 0 && <div className="muted">No items yet.</div>}
-            {rows.map(q => (
-                <div className="table__row" key={q.id}>
-                    <div className="grow"><b>{q.title}</b> <span className="muted">· {q.difficulty}</span></div>
-                    <div className="muted">Attempts: {q.attempts || 0}</div>
-                    <Link className="btn" to={`/quiz/${q.id}`}>Start</Link>
-                </div>
-            ))}
-        </Card>
-    );
-
     return (
         <div className="container">
-            <h2>My Quizzes & Exams</h2>
-            <div className="grid grid--2">
-                <Section title="Practice" rows={practice} />
-                <Section title="Exams" rows={exam} />
-            </div>
+            <h2>My Practice Quizzes</h2>
+            <Card>
+                {practice.length === 0 && <div className="muted">No practice quizzes yet.</div>}
+                {practice.map(q => (
+                    <div className="table__row" key={q.id}>
+                        <div className="grow">
+                            <b>{q.title}</b> <span className="muted">· {q.difficulty}</span>
+                        </div>
+                        <div className="muted">Attempts: {q.attempts || 0}</div>
+                        <Link className="btn" to={`/quiz/${q.id}`}>Start</Link>
+                    </div>
+                ))}
+            </Card>
         </div>
     );
 }
@@ -79,15 +72,31 @@ function RunnerMode({ quizId, user, setUser, nav }) {
             try {
                 const q = await getQuiz(quizId);
                 if (!alive) return;
+
+                // Block non-practice quizzes (just in case someone navigates directly)
+                if ((q.mode || "").toLowerCase() !== "practice") {
+                    setErr("This page only supports Practice mode.");
+                    return;
+                }
+
                 setMeta({ id: q.id, title: q.title, difficulty: q.difficulty, mode: q.mode });
                 const norm = (q.items || []).map(it => ({
-                    id: it.id, type: it.type, question: it.question, choices: it.choices || null, explanation: it.explanation || ""
+                    id: it.id,
+                    type: it.type,
+                    question: it.question,
+                    choices: it.choices || null,
+                    explanation: it.explanation || ""
                 }));
                 setItems(norm);
+
                 try {
                     const resp = await startPractice(quizId);
                     if (resp?.awarded) {
-                        setUser({ ...user, coins_balance: resp.coins_balance, coins_earned_total: resp.coins_earned_total });
+                        setUser({
+                            ...user,
+                            coins_balance: resp.coins_balance,
+                            coins_earned_total: resp.coins_earned_total
+                        });
                     }
                 } catch (_) { }
             } catch (e) {
@@ -107,9 +116,14 @@ function RunnerMode({ quizId, user, setUser, nav }) {
             const payload = { score: count, time_spent_sec: 0 };
             const resp = await submitQuiz(quizId, payload);
             if (resp?.total_points != null) {
-                setUser({ ...user, total_points: resp.total_points, coins_balance: resp.coins_balance, coins_earned_total: resp.coins_earned_total });
+                setUser({
+                    ...user,
+                    total_points: resp.total_points,
+                    coins_balance: resp.coins_balance,
+                    coins_earned_total: resp.coins_earned_total
+                });
             }
-            alert("Submitted! Returning to list.");
+            alert("Submitted! Returning to practice list.");
             nav("/quiz");
         } catch (e) {
             alert(e?.message || "Submit failed");
@@ -117,31 +131,56 @@ function RunnerMode({ quizId, user, setUser, nav }) {
     }
 
     if (loading) return <div className="container"><Card>Loading…</Card></div>;
-    if (err) return <div className="container"><Card tone="red">{err}</Card></div>;
+    if (err) return (
+        <div className="container">
+            <Card tone="red">
+                {err} <br />
+                <button className="btn btn--light" onClick={() => nav("/quiz")}>Back to Practice</button>
+            </Card>
+        </div>
+    );
     if (!at) return <div className="container"><Card>Empty quiz.</Card></div>;
 
     return (
         <div className="container">
             <h2>{meta?.title}</h2>
-            <ProgressBar value={i + 1} max={count} />
+            <div className="flex items-center gap-2">
+                <ProgressBar value={Math.min(i + 1, count || 1)} max={count || 1} />
+                <div className="muted" style={{ minWidth: 130, textAlign: "right" }}>
+                    Question {Math.min(i + 1, count)} / {count || 0}
+                </div>
+            </div>
             <Card>
                 <div className="q">{at.question}</div>
                 {Array.isArray(at.choices) ? (
                     <div className="choices">
                         {at.choices.map((c, idx) => (
                             <label key={idx} className={`choice ${picked === idx ? "is-picked" : ""}`}>
-                                <input type="radio" name="pick" checked={picked === idx} onChange={() => setPicked(idx)} />
+                                <input
+                                    type="radio"
+                                    name="pick"
+                                    checked={picked === idx}
+                                    onChange={() => setPicked(idx)}
+                                />
                                 <span>{c}</span>
                             </label>
                         ))}
                     </div>
                 ) : (
-                    <textarea value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type your answer..." />
+                    <textarea
+                        value={typed}
+                        onChange={(e) => setTyped(e.target.value)}
+                        placeholder="Type your answer..."
+                    />
                 )}
                 <div className="actions">
-                    <button className="btn btn--light" onClick={() => setI(Math.max(0, i - 1))} disabled={i === 0}>Back</button>
+                    <button className="btn btn--light" onClick={() => setI(Math.max(0, i - 1))} disabled={i === 0}>
+                        Back
+                    </button>
                     {i < count - 1 ? (
-                        <button className="btn" onClick={() => setI(Math.min(count - 1, i + 1))}>Next</button>
+                        <button className="btn" onClick={() => setI(Math.min(count - 1, i + 1))}>
+                            Next
+                        </button>
                     ) : (
                         <button className="btn" onClick={onSubmit}>Submit</button>
                     )}
