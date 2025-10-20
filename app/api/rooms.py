@@ -51,9 +51,7 @@ def verify_room_access(room_id: int, user_id: int = Form(...), password: str = F
     if room.is_private == "private" and room.password != password:
         raise HTTPException(status_code=403, detail="Invalid password")
 
-    # Give access and record it in roomInfo
     entry = db.query(RoomInfo).filter(RoomInfo.room_id == room_id, RoomInfo.user_id == user_id).first()
-    # print(entry.has_access)
     if not entry:
         entry = RoomInfo(room_id=room_id, user_id=user_id, has_access=True)
         db.add(entry)
@@ -67,12 +65,10 @@ def verify_room_access(room_id: int, user_id: int = Form(...), password: str = F
 
 @router.get("/rooms/{room_id}/access")
 def check_access(room_id: int, user_id: int, db: Session = Depends(get_db)):
-    # see if room exists
     room = db.query(Rooms).filter(Rooms.room_id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
 
-    # check RoomInfo table for access
     entry = db.query(RoomInfo).filter(RoomInfo.room_id == room_id, RoomInfo.user_id == user_id).first()
     if entry and entry.has_access:
         return {"has_access": True}

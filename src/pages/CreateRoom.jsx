@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+
 
 export default function CreateRoom() {
+  const { clientId } = useParams();
   const navigate = useNavigate();
   const [imagePreview, setImagePreview] = useState(null);
   const [privacy, setPrivacy] = useState("public")
@@ -30,8 +33,11 @@ export default function CreateRoom() {
       if (!response.ok) {
         alert("Failed to create room");
       } else {
-        const clientId = Math.floor(Math.random() * 10) + 1;
-        navigate(`/chat/${data.room_id}/${clientId}`);
+        // const clientId = Math.floor(Math.random() * 10) + 1;
+        console.log(data.room_id)
+        console.log(clientId)
+        navigate("/chat/"+data.room_id +"/"+ clientId)
+        // navigate(`/chat/${data.room_id}/${clientId}`);
       }
     } catch (err) {
       console.error("Error creating room:", err);

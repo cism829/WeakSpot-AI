@@ -40,8 +40,8 @@ class File(Base):
     __tablename__= 'files'
     file_id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, nullable=False)
-    content_type = Column(String, nullable=False)  # e.g., "application/pdf"
-    data = Column(LargeBinary, nullable=False)     # store raw bytes in DB
+    content_type = Column(String, nullable=False)  
+    data = Column(LargeBinary, nullable=False)     
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer, ForeignKey("users.id"))
     room_id = Column(Integer, ForeignKey("rooms.room_id"))

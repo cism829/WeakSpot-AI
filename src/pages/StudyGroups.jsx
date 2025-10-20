@@ -22,7 +22,9 @@ export default function StudyGroups() {
     }, []);
 
     if (selectedRoom) {
-        return <Chat room={selectedRoom} clientId ={clientId} />;
+        console.log("the selected room is:", selectedRoom)
+        // return <Chat room={selectedRoom} clientId ={clientId} />;
+        navigate("/chat/"+selectedRoom +"/"+ clientId)
     }
 
     async function verifyAccess(roomId, userId, password) {
@@ -46,6 +48,11 @@ export default function StudyGroups() {
     const handleJoinRoom = async (room) => {
         let accessRes = await fetch(`http://127.0.0.1:8000/rooms/${room.room_id}/access?user_id=${clientId}`);
         let accessData = await accessRes.json();
+
+        if (accessData.is_private === "public") {
+            setSelectedRoom(room.room_id);
+            return;
+        }
 
         if (accessData.is_private === "private" && !accessData.has_access) {
             const password = prompt("Enter room password:");
@@ -72,7 +79,7 @@ export default function StudyGroups() {
         <div className="container">
             
             <h2>👥 Study Groups</h2>
-            <Link to='/createroom'>
+            <Link to={"/createroom/"+clientId }>
                 <button>Create new room</button>
             </Link>
             

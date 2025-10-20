@@ -3,8 +3,8 @@ import { useParams } from "react-router-dom";
 
 
 
-function Chat({ room, clientId }) {
-    // const  = useParams()
+function Chat() {
+    const { room, clientId } = useParams();
     // console.log(room, clientId); 
     console.log("room number: ", room)
     console.log("client id: ", clientId)
@@ -37,7 +37,7 @@ function Chat({ room, clientId }) {
         }
 
         if (ws.current) {
-            ws.current.close() // close previous room
+            ws.current.close() 
         }
         // setRoom(roomNumber)
         
@@ -50,6 +50,7 @@ function Chat({ room, clientId }) {
         // }
 
         ws.current = new WebSocket(`ws://localhost:8000/ws/${room}/${clientId}`)
+        ws.current = new WebSocket("ws://localhost:8000/ws/"+room+ "/"+clientId)
 
         ws.current.onopen = () => setConnected(true)
         ws.current.onclose = () => setConnected(false)

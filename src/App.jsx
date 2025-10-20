@@ -60,7 +60,7 @@ function App() {
                 <Route path="/chat/:room/:clientId" element={<Chat />} />
 
                 <Route path="/studygroups/:clientId" element={<StudyGroups />} />
-                <Route path='/createroom' element = {<CreateRoom />} />
+                <Route path='/createroom/:clientId' element = {<CreateRoom />} />
 
                 {/* Protected routes */}
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
