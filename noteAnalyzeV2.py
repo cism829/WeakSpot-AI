@@ -25,11 +25,11 @@ nlp = spacy.load("en_core_web_sm")
 # ----------------------- cfg -----------------------
 SUBJECT = "computer science"
 
-INPUT_TXT = Path("example_notes/example2.txt")
-OUTPUT_REPAIRED = Path("ai_results/presentation_example2.txt")
-OUTPUT_FLAGS_TXT = Path("ai_results/presentation_suggestions2.txt")
-OUTPUT_FLAGS_JSON = Path("ai_results/presentation_suggestions2.json")
-OUTPUT_OCR_REPAIRS_JSON = Path("ai_results/ocr_repairs2.json")
+INPUT_TXT = Path("example_notes/example1.txt")
+OUTPUT_REPAIRED = Path("ai_results/presentation_example1.txt")
+OUTPUT_FLAGS_TXT = Path("ai_results/presentation_suggestions1.txt")
+OUTPUT_FLAGS_JSON = Path("ai_results/presentation_suggestions1.json")
+OUTPUT_OCR_REPAIRS_JSON = Path("ai_results/ocr_repairs1.json")
 
 MODEL_SUMMARY = "gpt-4o-mini"
 MODEL_DEFINITION = "gpt-4o-mini"
@@ -64,7 +64,7 @@ MEANINGFUL_MIN_ALPHAS = 3
 def has_ocr_gap(text: str) -> bool:
     return GAP_REGEX.search(text) is not None
 
-# list of (start, end, text) for each sentence; spaCy-based.
+# list of (start, end, text) tuples for position of each sentence
 # using character offsets to preserve original spacing/newlines
 def sentence_spans(text: str):
     doc = nlp(text)
@@ -172,19 +172,17 @@ Return STRICT JSON:
 
 # apply repairs only to sentences that contain '(?)' or '...'; use context; validate & retry once
 def repair_ocr_gaps(full_text: str, subject: str) -> Tuple[str, List[Dict[str, Any]]]:
-    """
-    Repairs only sentences containing '(?)' or '...'; uses context;
-    preserves ALL original whitespace and newlines exactly.
-    """
     spans = sentence_spans(full_text)
     repaired_text = full_text  # we'll edit in place using offsets
     offset_shift = 0           # cumulative offset shift (if replacements differ in length)
     log: List[Dict[str, Any]] = []
 
+    # regex check for (?) or ..., skip others
     for idx, (st, en, sent) in enumerate(spans):
         if not has_ocr_gap(sent):
             continue
 
+        # collect context from neighboring sentences, call ai model
         ctx = get_sentence_context(spans, idx)
         result = ocr_repair_one_sentence_with_context(ctx, subject)
         if result is None:
@@ -195,6 +193,9 @@ def repair_ocr_gaps(full_text: str, subject: str) -> Tuple[str, List[Dict[str, A
             }
             result = ocr_repair_one_sentence_with_context(strict_ctx, subject)
 
+        # retry once with stricter context (renamed placeholders) if invalid
+        # its possible the model can misunderstand the placeholders
+        # if still nothing skip
         if not result or not isinstance(result.get("fills"), list):
             continue
 
@@ -202,22 +203,30 @@ def repair_ocr_gaps(full_text: str, subject: str) -> Tuple[str, List[Dict[str, A
         repaired_sent = result.get("repaired", sent)
         fills = result["fills"]
 
-        # apply replacements *only* at the placeholder positions inside the original substring.
-        # replacements made sequentially to preserve newlines and leave other characters untouched.
+        # apply replacements *only* at the placeholder positions inside the original substring
+        # replacements made sequentially to preserve newlines and leave other characters untouched
+        # replace only one occurrence per placeholder
         original_sub = full_text[st + offset_shift : en + offset_shift]
         temp_sub = original_sub
         for f in fills:
             ph = f.get("placeholder", "")
             repl = f.get("replacement", "")
             if ph in temp_sub and _is_meaningful(repl):
-                temp_sub = temp_sub.replace(ph, repl, 1)
+                insert = repl
+                match = re.search(re.escape(ph), temp_sub)
+                if match:
+                    pos = match.start()
+                    if pos > 0 and temp_sub[pos - 1].isalnum():
+                        insert = " " + repl  # add space before
+                temp_sub = temp_sub.replace(ph, insert, 1)
 
-        # replace that slice in the repaired_text
+
+        # reconstruct text with repaired substring
         repaired_text = (
             repaired_text[: st + offset_shift] + temp_sub + repaired_text[en + offset_shift :]
         )
 
-        # adjust offset for any length difference (usually small)
+        # adjust offset for repaired substring length difference
         offset_shift += len(temp_sub) - len(original_sub)
 
         log.append({
@@ -232,7 +241,7 @@ def repair_ocr_gaps(full_text: str, subject: str) -> Tuple[str, List[Dict[str, A
 
 
 #----------------------- note analysis segment -----------------------
-# split string using spacy into sentences
+# split string using spaCy into sentences
 def sentence_texts(text: str) -> List[str]:
     doc = nlp(text.strip())
     return [s.text.strip() for s in doc.sents if s.text.strip()]
@@ -276,6 +285,8 @@ def parse_blocks_spacy(raw: str) -> List[str]:
         return []
 
     # paragraph-aware via blank lines
+    # ocr preserves structure of the original document
+    # if the original doc had blank lines, use their structure as paragraphs
     if doc_has_blank_lines(raw):
         raw_blocks = [b for b in raw.split("\n\n") if b.strip()]
         out_blocks: List[str] = []
@@ -285,7 +296,7 @@ def parse_blocks_spacy(raw: str) -> List[str]:
                 out_blocks.append(cleaned)
         return out_blocks
 
-    # if no blank lines, use sentence & POS cues
+    # if no blank lines, spaCy sentence analysis
     doc = nlp(raw)
     sents = [s for s in doc.sents if s.text.strip()]
     if not sents:
@@ -316,6 +327,8 @@ def parse_blocks_spacy(raw: str) -> List[str]:
 
 
 # pack sentences into blocks of target_chars length
+# blocking is a compromise between context and model input limits
+# seperate sentences lose context, sending large chunks risks exceeding token limits
 def group_sentences_into_blocks(sents: List[str], target_chars: int = TARGET_BLOCK_CHARS) -> List[str]:
     blocks: List[str] = []
     cur: List[str] = []
@@ -331,25 +344,35 @@ def group_sentences_into_blocks(sents: List[str], target_chars: int = TARGET_BLO
         blocks.append(" ".join(cur).strip())
     return blocks
 
-# blocks are term/definition candidates if:
-# first sentence is heading-like (short, no verb)
-# block has few sentences - likely a short label
+# check if a block seems to need a definition added
 def looks_like_term_block(block: str) -> bool:
     """
-    A block is a term/definition candidate if:
-      - First sentence is heading-like (short, no VERB/AUX), and
-      - Block has few sentences (<= 2) → likely a short label plus fragment/incomplete intro.
+    There are edge cases where this may not
+    function great, found some but looking
+    for more
     """
+
     doc = nlp(block)
     sents = [s for s in doc.sents if s.text.strip()]
     if not sents:
         return False
-    first = sents[0]
-    if is_heading_like_sent(first) and len(sents) <= 2:
+    
+    # check first sentence, then overall structure
+    # if the block contains multiple sentences with verbs, likely not a term block
+    # long explanatory blocks with a short first line are excluded here
+    first = sents[0].text.strip()
+    if len(sents) > 1 and any(tok.pos_ == "VERB" for tok in doc):
+        return False
+    
+    # colon in first line or very short first line: probably a term
+    if ":" in first or len(first.split()) <= 3:
         return True
+
+    
     # very short line with no verbs: treat as term
     if len(sents) == 1 and is_heading_like_sent(first):
         return True
+    
     return False
 
 
@@ -379,16 +402,155 @@ def whole_def(block: str, subject: str) -> str:
     )
     return resp.choices[0].message.content.strip()
 
-# append a generated definition to skeletal blockss
-def repair_blocks(blocks: List[str]) -> List[str]:
-    repaired: List[str] = []
-    for b in blocks:
-        if looks_like_term_block(b):
-            definition = whole_def(b, SUBJECT)
-            repaired.append(b + " " + definition)
+# compiles regular exopression for list-like lines
+# used to detect enumeration blocks - should it be summarized or defined
+LIST_LINE = re.compile(r"^\s*([-\u2022\u2023\u25E6\*\u2219]|\d+[\.)])\s+")  # -, •, *, 1.) 
+RULE_HEADING = re.compile(r"^\s*Rule\s*\d+\s*:", re.IGNORECASE)
+
+# detect if a block is a bullet list type section
+# checking line patterns (ie many short lines, low verb density)
+# OCR does not always use consistent bullet characters or indentation
+# checking multiple heuristics to determine if this is an enumeration block is more robust
+def is_enumeration_block(block: str) -> bool:  
+    """
+    numbers may need tuning based on further testing
+    """
+    
+    # check for multiple non-empty lines
+    lines = [ln for ln in block.splitlines() if ln.strip()]
+    if len(lines) < 2:
+        return False
+
+    # check for lines that look like bulleted items
+    bulletish = sum(1 for ln in lines if LIST_LINE.match(ln))
+    if bulletish >= 2:
+        return True
+
+    # check for many short lines
+    # need to be relatively strict to avoid false positives
+    short_lines = sum(1 for ln in lines if len(ln.strip()) <= 75)
+    if short_lines >= max(3, len(lines) // 2):
+        return True
+
+    # use spaCy to check for low verb density overall
+    doc = nlp(block)
+    sents = [s for s in doc.sents if s.text.strip()]
+    if sents:
+        verbs = sum(1 for s in sents for tok in s if tok.pos_ in ("VERB", "AUX"))
+        if verbs <= max(1, len(sents) // 3):
+            return True
+
+    return False
+
+# checking for "Rule X:" headings to split blocks
+def split_by_rule_headings(text: str) -> List[str]:
+    lines = text.splitlines(keepends=True)
+    blocks: List[str] = []
+    cur: List[str] = []
+
+    def flush():
+        if cur:
+            blocks.append("".join(cur).strip())
+            cur.clear()
+
+    saw_rule = False
+    for ln in lines:
+        if RULE_HEADING.match(ln):
+            saw_rule = True
+            flush()
+            cur.append(ln)
         else:
-            repaired.append(b)
-    return repaired
+            cur.append(ln)
+    flush()
+
+    # pass through original text if no rule headings found
+    if not saw_rule:
+        return [text.strip()] if text.strip() else []
+    # drop empty blocks
+    return [b for b in blocks if b]
+
+# heuristic to check if block looks like it needs a definition
+def looks_like_definition_block(block: str) -> bool:  
+    doc = nlp(block)
+    sents = [s for s in doc.sents if s.text.strip()]
+    if not sents:
+        return False
+    if not is_heading_like_sent(sents[0]):
+        return False
+    if len(sents) > 2:
+        return False
+    # if two sentences, second should not have many verbs - indicative of explanation
+    if len(sents) == 2:
+        verb_count = sum(1 for tok in sents[1] if tok.pos_ in ("VERB","AUX"))
+        if verb_count >= 2:
+            return False
+    return True
+
+# helper to detect rule blocks
+def is_rule_block(block: str) -> bool:
+    for ln in block.splitlines():
+        if ln.strip():
+            return bool(RULE_HEADING.match(ln))
+    return False
+
+# classifies block as one of four categories:
+# definition: short term like block to be defined
+# enumeration: list-like block to be summarized
+# concept: heading-like block with explanation to be summarized
+# generic: none of the above, pass-through
+def classify_block(block: str) -> str: 
+
+    if is_enumeration_block(block):
+        return "enumeration"
+
+    if is_rule_block(block):
+        return "concept"
+    # if sentences look like heading, check definition heuristics
+    # send to definition or concept accordingly
+    doc = nlp(block)
+    sents = [s for s in doc.sents if s.text.strip()]
+    if sents and is_heading_like_sent(sents[0]):
+        if looks_like_definition_block(block):
+            return "definition"
+        return "concept"
+
+    return "generic"
+
+# call model to produce contextual summary for enumeration/concept blocks
+def contextual_summarize_block(block: str, subject: str) -> str:
+
+    prompt = f"""
+You are summarizing educational notes in {subject}.
+Rewrite the following section into a compact 3–4 sentence explanation.
+- Keep the original meaning and examples.
+- Prefer cause→effect phrasing when applicable.
+- Avoid bullet points; produce a cohesive paragraph.
+
+Section:
+{block}
+""".strip()
+
+    resp = client.chat.completions.create(
+        model=MODEL_SUMMARY,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=TEMPERATURE_DEFAULT,
+        max_tokens=300,
+    )
+    return resp.choices[0].message.content.strip()
+
+# appead blocks with generated definitions or contextual summaries based on classification
+def enrich_blocks(blocks: List[str]) -> List[str]: 
+    enriched: List[str] = []
+    for b in blocks:
+        b_type = classify_block(b)
+        if b_type == "definition":
+            enriched.append(b + " " + whole_def(b, SUBJECT))
+        elif b_type in ("enumeration", "concept"):
+            summary = contextual_summarize_block(b, SUBJECT)
+            enriched.append(b + "\n\nContextual summary:\n" + summary)
+        else:
+            enriched.append(b)
+    return enriched
 
 # model call to summarize notes and extract main subject + subtopics
 def summarize_notes(text: str) -> str:
@@ -570,10 +732,14 @@ def main():
     original_text = repaired_text
 
     # 2) spaCy-driven parsing into blocks 
-    blocks = parse_blocks_spacy(original_text)
+    rule_blocks = split_by_rule_headings(original_text) 
+    if len(rule_blocks) > 1:                              
+        blocks = [merge_soft_wraps_keep_paragraphs(b) for b in rule_blocks]  # keep structure but fix soft-wraps 
+    else:
+        blocks = parse_blocks_spacy(original_text)        
 
-    # 3) Repair definition-like blocks (spaCy heading heuristic)
-    repaired_blocks = repair_blocks(blocks)
+    # 3) Repair/Enrich blocks
+    repaired_blocks = enrich_blocks(blocks)     
 
     # 4) Sliding windows for accuracy checking
     windows = sliding_windows(repaired_blocks, max_chars=WINDOW_MAX_CHARS, overlap_blocks=WINDOW_OVERLAP_BLOCKS)
