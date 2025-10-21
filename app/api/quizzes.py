@@ -43,6 +43,8 @@ def _build_system():
         "You are a helpful tutor that writes concise, unambiguous assessment items. "
         "Always return STRICT JSON that matches the provided schema. "
         "Do not include any explanations outside of JSON."
+        "Return ONLY valid JSON. Do NOT include extra text, code fences, or explanations."
+
     )
 
 def _build_user_prompt(subject: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
@@ -85,16 +87,29 @@ def _build_user_prompt(subject: str, difficulty: str, n: int, item_types: List[s
     )
 
     return (
-        f"Create {n} {difficulty} {subject} questions across these item types: {types_list}.\n"
-        f"{note_clause}"
-        "Return STRICT JSON with this schema:\n"
-        f"{schema_hint}\n"
-        "Rules:\n"
-        f"- Questions must be solvable without external info beyond common {subject} knowledge and any provided context.\n"
-        "- MCQ uses exactly 4 choices.\n"
-        '- True/False uses the words "True" or "False" in answer_text.\n'
-        "- Keep explanations brief, 1–2 sentences max.\n"
-    )
+    f"Create {n} questions of {subject} by {difficulty} level across these item types: {types_list}.\n"
+    f"{note_clause}"
+    "Return STRICT JSON matching this schema:\n"
+    f"{schema_hint}\n"
+    "Rules:\n"
+    "- Questions must be solvable without external info beyond common "
+    f"{subject} knowledge and any provided context.\n"
+    "- MCQ must use exactly 4 distinct choices.\n"
+    '- True/False must use exactly \"True\" or \"False\" in answer_text.\n'
+    "- Keep explanations brief (1–2 sentences), precise, and tied to the question.\n"
+    "- Ensure all text is clear and unambiguous.\n"
+    "- Ensure answers are correct and matched the question and the explanation.\n"
+    "\n"
+    "INTERNAL CONSISTENCY CHECK (do not output this section—just enforce it):\n"
+    "- For MCQ: answer_index must be an integer in [0..3] and answer_text must EXACTLY\n"
+    "  equal choices[answer_index]. Explanation must justify why that choice is correct\n"
+    "  and, where relevant, why others are not.\n"
+    "- For True/False: answer_text must be exactly \"True\" or \"False\" and the explanation\n"
+    "  must justify that truth value with a fact directly implied by the question/context.\n"
+    "- For Short Answer/Fill-in: answer_text must directly answer the question; explanation\n"
+    "  must be consistent with that answer and not introduce contradictory facts.\n"
+    "- If any item fails these checks, regenerate that item before returning your final JSON.\n"
+)
 
 def _coerce_item(it: dict) -> dict | None:
     t = (it.get("type") or "").lower().replace("-", "_")
