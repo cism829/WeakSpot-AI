@@ -98,10 +98,27 @@ export const getBestReview = (quizId, token) =>
   req(`/quizzes/${quizId}/best`, { method: "GET", token });
 
 
+export const listMyFlashcards = (token) =>
+  req("/flashcards/mine", { token });
 
+export const getFlashcard = (id, token) =>
+  req(`/flashcards/${id}`, { token });
 
+export const flashcardsGenerateAI = ({ subject, num_items, title }, token) =>
+  req("/flashcards/generate-ai", {
+    method: "POST",
+    body: { subject, num_items, title },
+    token,
+  });
 
-export const listNotes = (token) => req('/notes/', { token });
+export const flashcardsGenerateAIFromNote = ({ note_id, subject, num_items, title }, token) =>
+  req("/flashcards/generate-ai-from-note", {
+    method: "POST",
+    body: { note_id, subject, num_items, title },
+    token,
+  });
+export const listMyNotes = (token) => req('/notes/', { token });
+
 export const createNote = (note, token) => req('/notes/', { method: 'POST', body: note, token });
 export const deleteNote = (id, token) => req(`/notes/${id}`, { method: 'DELETE', token });
 export const listFlashcards = (token) => req('/flashcards/', { token });

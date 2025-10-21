@@ -8,6 +8,8 @@ from app.api.quizzes import router as quizzes_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.exam import router as exam_router
 from app.api.review import router as review_router
+from app.api.flashcards import router as flashcards_router
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Tutor - Backend", version="1.0.0")
@@ -31,3 +33,4 @@ app.include_router(quizzes_router)
 app.include_router(leaderboard_router)
 app.include_router(exam_router)
 app.include_router(review_router)
+app.include_router(flashcards_router)
