@@ -49,7 +49,11 @@ export default function QuizFeedback() {
             if (!r || !Array.isArray(r.items)) throw new Error("No review data.");
             setReview({
                 items: r.items,
-                score: typeof r.score === "number" ? r.score : null,
+                // include richer score fields if present
+                percent: typeof r.percent === "number" ? r.percent : null,
+                raw_correct: typeof r.raw_correct === "number" ? r.raw_correct : null,
+                total: typeof r.total === "number" ? r.total : null,
+                score: typeof r.score === "number" ? r.score : null, // legacy
                 reward: 0,
                 quizId: q.id,
                 title: r.title || q.title,
@@ -60,17 +64,26 @@ export default function QuizFeedback() {
             try {
                 const itemsRes = await req(`/quizzes/${q.id}/items`);
                 let items = Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || []);
-                // normalize basic shape
                 const norm = items.map(it => ({
                     q: it.question || "",
-                    your: "",
+                    choices: Array.isArray(it.choices) ? it.choices : null,
+                    your: "", // no saved answers in fallback
                     correctAns: (it.type === "mcq" && Array.isArray(it.choices) && typeof it.answer_index === "number")
                         ? (it.choices[it.answer_index] ?? "")
                         : (it.answer_text ?? ""),
                     why: it.explanation || "",
                     correct: null
                 }));
-                setReview({ items: norm, score: null, reward: 0, quizId: q.id, title: q.title });
+                setReview({
+                    items: norm,
+                    percent: null,
+                    raw_correct: null,
+                    total: items.length,
+                    score: null,
+                    reward: 0,
+                    quizId: q.id,
+                    title: q.title
+                });
                 window.scrollTo({ top: 0, behavior: "smooth" });
             } catch (e2) {
                 alert(e?.message || "Unable to load best attempt.");
@@ -80,28 +93,83 @@ export default function QuizFeedback() {
         }
     }
 
-    // 4) Render rows robustly (supports both detailed + simple shapes)
+    // 4) Normalize items so "your" always shows correctly (supports many server shapes)
     const rows = useMemo(() => {
         const src = review?.items || stateItems || [];
-        return src.map((r) => {
-            if (typeof r?.q === "string" || typeof r?.your === "string" || typeof r?.correctAns === "string") {
-                return {
-                    q: r.q || "",
-                    correct: r.correct ?? null,
-                    your: r.your ?? "",
-                    correctAns: r.correctAns ?? "",
-                    why: r.why ?? "",
-                };
+
+        const choiceToText = (c) => {
+            if (typeof c === "string") return c;
+            if (c && typeof c === "object") {
+                for (const k of ["text", "label", "value", "answer"]) {
+                    if (typeof c[k] === "string") return c[k];
+                }
+                return String(c);
             }
-            // fallback for raw quiz items
-            return {
-                q: r.question || "",
-                correct: null,
-                your: "",
-                correctAns: r.answer_text || "",
-                why: r.explanation || "",
-            };
-        });
+            return String(c ?? "");
+        };
+
+        const toNumber = (v) => {
+            const s = String(v ?? "").trim();
+            if (/^-?\d+$/.test(s)) return parseInt(s, 10);
+            return NaN;
+        };
+
+        const normalize = (r) => {
+            const q = r.q ?? r.question ?? "";
+            const choices = Array.isArray(r.choices) ? r.choices
+                : Array.isArray(r.options) ? r.options
+                    : null;
+
+            // Gather possible user answer fields
+            let your = r.your ?? r.user_answer ?? r.userAnswer ?? r.answer ?? r.yourAnswer ?? "";
+            // Also consider explicit index fields
+            const idxCandidates = [
+                r.choice_index,
+                r.answer_index,   // sometimes client echoes index
+                r.your_index,
+                r.user_index,
+            ].filter((x) => x !== undefined && x !== null);
+
+            // If "your" is boolean, show as True/False
+            if (typeof your === "boolean") your = your ? "True" : "False";
+
+            // If "your" is still empty but we have an index candidate, use it
+            if ((!your || your === "") && idxCandidates.length && choices) {
+                const n = toNumber(idxCandidates[0]);
+                if (!Number.isNaN(n) && n >= 0 && n < choices.length) {
+                    your = choiceToText(choices[n]);
+                }
+            }
+
+            // If "your" looks like a number and we have choices, map index->text
+            if (choices && your !== "" && !Array.isArray(your)) {
+                const n = toNumber(your);
+                if (!Number.isNaN(n) && n >= 0 && n < choices.length) {
+                    your = choiceToText(choices[n]);
+                }
+            }
+
+            // If "your" is an array (multi-select), join for display
+            if (Array.isArray(your)) {
+                your = your.map(choiceToText).join(", ");
+            }
+
+            const correctAns =
+                r.correctAns ?? r.correct_text ?? r.correct ?? r.answer_text ?? "";
+
+            const why = r.why ?? r.explanation ?? "";
+
+            const correct =
+                typeof r.correct === "boolean"
+                    ? r.correct
+                    : typeof r.is_correct === "boolean"
+                        ? r.is_correct
+                        : null;
+
+            return { q, your: String(your ?? ""), correctAns: String(correctAns ?? ""), why: String(why ?? ""), correct };
+        };
+
+        return src.map(normalize);
     }, [review?.items, stateItems]);
 
     return (
@@ -115,13 +183,30 @@ export default function QuizFeedback() {
                             {review?.title ? <>Review: <em>{review.title}</em></> : "Review"}
                         </h3>
                         <p className="muted" style={{ marginTop: 4 }}>
-                            {review?.score != null || stateScore != null
-                                ? <>Best score: <strong>{Math.round(review?.score ?? stateScore)}%</strong></>
-                                : "Score not available — showing explanations only."}
+                            {review?.percent != null
+                                ? (
+                                    <>
+                                        Best score:{" "}
+                                        <strong>
+                                            {Math.min(100, Math.round(review.percent))}%
+                                        </strong>{" "}
+                                        ({review.raw_correct}/{review.total})
+                                    </>
+                                )
+                                : review?.score != null
+                                    ? (
+                                        <>
+                                            Best score:{" "}
+                                            <strong>
+                                                {Math.min(100, Math.round(review.score))}%
+                                            </strong>
+                                        </>
+                                    )
+                                    : "Score not available — showing explanations only."}
                         </p>
                         <div className="mt">
                             <Link className="btn btn--primary" to="/flashcards">Review with flashcards</Link>
-                            <Link className="btn btn--light" to="/progress" style={{ marginLeft: 10 }}>View progress</Link>
+                            <Link className="btn btn--primary" to="/progress" style={{ marginLeft: 10 }}>View progress</Link>
                         </div>
                     </Card>
 
@@ -178,7 +263,9 @@ export default function QuizFeedback() {
                                 <div className="table__row" key={q.id}>
                                     <div className="grow">{q.title}</div>
                                     <div className="muted">{q.mode || "practice"}</div>
-                                    <div>{q.best_score != null ? Math.round(q.best_score) + "%" : "—"}</div>
+                                    <div>{q.best_score != null ? Math.round(q.best_score) : "—"}</div>
+
+
                                     <div className="muted">{q.last_taken_at ? new Date(q.last_taken_at).toLocaleString() : "—"}</div>
                                     <button
                                         className="btn"

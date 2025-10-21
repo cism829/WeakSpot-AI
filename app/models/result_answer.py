@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, ForeignKey, Text, Boolean, Index
 from sqlalchemy.orm import relationship
 from app.models.base import Base
-fr
+
 class ResultAnswer(Base):
     __tablename__ = "result_answers"
     id = Column(Integer, primary_key=True, index=True)
@@ -14,3 +14,4 @@ class ResultAnswer(Base):
     item = relationship("QuizItem")
     result = relationship("Result", back_populates="answers")
     
+Index("ix_result_answers_result_item", ResultAnswer.result_id, ResultAnswer.item_id, unique=True)

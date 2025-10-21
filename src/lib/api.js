@@ -65,7 +65,10 @@ export const quizzesGenerateAIFromNote = (
 export const getQuiz = (id) => req(`/quizzes/${id}`);
 export const listMyQuizzes = () => req('/quizzes/mine');
 export const startPractice = (id) => req(`/quizzes/${id}/start`, { method: 'POST' });
-export const submitQuiz = (id, payload) => req(`/quizzes/${id}/submit`, { method: 'POST', body: payload });
+export const gradeQuiz = (quizId, payload, token) =>
+  req(`/quizzes/${quizId}/grade`, { method: "POST", body: payload, token });
+
+
 // --- Exams ---
 export const getMyExams = () => req('/exams/mine');
 export const startExamById = (id) => req(`/exams/${id}/start`, { method: 'POST' });
@@ -91,8 +94,8 @@ export async function getLeaderboard({ token, signal } = {}) {
   return res.json();
 }
 // --- Reviews ---
-export const getBestReview = (id) => req(`/quizzes/${id}/best`);  // normalized best-attempt review
-
+export const getBestReview = (quizId, token) =>
+  req(`/quizzes/${quizId}/best`, { method: "GET", token });
 
 
 

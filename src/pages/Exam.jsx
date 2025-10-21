@@ -68,7 +68,7 @@ export default function Exam() {
                     {data.started.map((e) => (
                         <div className="table__row" key={e.id}>
                             <div className="grow"><b>{e.title}</b> <span className="muted">· {e.difficulty}</span></div>
-                            <button className="btn btn--light" onClick={() => nav(`/quiz/${e.id}`)}>Resume</button>
+                            <button className="btn" onClick={() => nav(`/quiz/${e.id}`)}>Resume</button>
                         </div>
                     ))}
                 </Card>

@@ -12,8 +12,9 @@ from app.models.user import User
 from app.models.quiz import Quiz
 from app.models.quiz_item import QuizItem
 from app.models.result import Result
+from app.models.result_answer import ResultAnswer
 from app.models.attempt import Attempt
-from app.schemas.quiz_gen import GenerateWithNote, GenerateWithoutNote, QuizOut, QuizItemOut, SubmitPayload
+from app.schemas.quiz_gen import GenerateWithNote, GenerateWithoutNote, QuizOut, QuizItemOut, SubmitPayload, GradePayload
 from app.schemas.quiz import QuizItems  # Pydantic schema for structured output
 
 # ---- Gemini SDK ----
@@ -240,7 +241,7 @@ def _persist_quiz_and_items(
     q = Quiz(
         user_id=user_id,
         note_id=note_id,
-        title=f"{subject.title()} Quiz",
+        title=f"{subject.title()} - {mode.title().capitalize()}",
         difficulty=difficulty,
         mode=mode,
         source=source,
@@ -305,7 +306,7 @@ def generate_ai_from_note(
     """
     Generate a quiz using Gemini *with* note context (from a notes table).
     """
-    note = db.execute(text("SELECT content FROM notes WHERE id=:nid"), {"nid": payload.note_id}).fetchone()
+    note = db.execute(text("SELECT content FROM notes WHERE file=:nid"), {"nid": payload.note_id}).fetchone()
     note_text = note[0] if note else ""
 
     items = _gemini_generate(
@@ -435,9 +436,12 @@ def start_practice(quiz_id: int, db: Session = Depends(get_db), user: User = Dep
 
     att = Attempt(quiz_id=quiz_id, user_id=user.id)
     db.add(att)
+    
+    user.coins_balance = (user.coins_balance or 0) + settings.COIN_PER_QUIZ            # award 1
     user.coins_earned_total = (user.coins_earned_total or 0) + settings.COIN_PER_QUIZ
-    user.coins_balance = (user.coins_balance or 0) + settings.COIN_PER_QUIZ
+    
     db.commit()
+
 
     return {
         "ok": True,
@@ -446,27 +450,96 @@ def start_practice(quiz_id: int, db: Session = Depends(get_db), user: User = Dep
         "coins_earned_total": user.coins_earned_total,
     }
 
-@router.post("/{quiz_id}/submit")
-def submit_quiz(quiz_id: int, payload: SubmitPayload, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Submit a finished quiz:
-        - Persist a Result (score + time spent)
-        - Increment user's total_points by rounded score
-        - Return updated totals (coins are unchanged here)
-    """
+def _norm_bool(s: str) -> str:
+    return str(s).strip().lower()
+
+def _text_norm(s: str) -> str:
+    return " ".join(str(s).strip().lower().split())
+
+@router.post("/{quiz_id}/grade")
+def grade_quiz(
+    quiz_id: int,
+    payload: GradePayload,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    r = Result(quiz_id=quiz_id, user_id=user.id, score=payload.score, time_spent_sec=payload.time_spent_sec)
-    db.add(r)
+    # Load items into a dict
+    items = db.query(QuizItem).filter(QuizItem.quiz_id == quiz_id).all()
+    item_map: Dict[int, QuizItem] = {it.id: it for it in items}
 
-    user.total_points = (user.total_points or 0) + int(round(payload.score or 0))
+    correct = 0
+    total = len(items)
+    per_item = []
+
+    for ua in payload.answers:
+        it = item_map.get(ua.item_id)
+        if not it:
+            continue
+
+        ok = False
+        your_str = ""
+
+        t = it.type or "mcq"
+        if t == "mcq":
+            # user: choice_index ; item: answer_index
+            if hasattr(ua, "choice_index"):
+                your_str = str(getattr(ua, "choice_index"))
+                ok = (it.answer_index is not None) and (ua.choice_index == it.answer_index)
+        elif t == "true_false":
+            your = _norm_bool(getattr(ua, "text", ""))
+            your_str = getattr(ua, "text", "")
+            truth = _norm_bool(it.answer_text or "")
+            # accept t/true/yes/1 vs f/false/no/0
+            true_set = {"true","t","yes","y","1"}
+            false_set = {"false","f","no","n","0"}
+            if truth in true_set:
+                ok = your in true_set
+            elif truth in false_set:
+                ok = your in false_set
+            else:
+                ok = _text_norm(it.answer_text or "") == _text_norm(your_str)
+        else:
+            # short_answer / fill_blank
+            your_str = getattr(ua, "text", "")
+            ok = _text_norm(it.answer_text or "") == _text_norm(your_str)
+
+        if ok:
+            correct += 1
+        per_item.append({"item_id": it.id, "your": your_str, "correct": ok})
+
+    # Persist Result and per-item answers (so review can read them)
+    r = Result(
+        quiz_id=quiz_id,
+        user_id=user.id,
+        score=float(correct),
+        time_spent_sec=payload.time_spent_sec or 0
+    )
+    db.add(r)
+    db.flush()  # get r.id
+
+    for row in per_item:
+        db.add(ResultAnswer(
+            result_id=r.id,
+            item_id=row["item_id"],
+            user_answer=row["your"],
+            is_correct=row["correct"],
+        ))
+
+    # award points
+    user.total_points = (user.total_points or 0) + int(correct)
     db.commit()
 
     return {
         "ok": True,
-        "coins_earned_total": user.coins_earned_total,
+        "score": correct,
+        "total": total,
+        "result_id": r.id,
         "coins_balance": user.coins_balance,
+        "coins_earned_total": user.coins_earned_total,
         "total_points": user.total_points,
+        "per_item": per_item,
     }

@@ -109,7 +109,7 @@ export default function Progress() {
                         <ul className="list">
                             {stats.series.slice(-10).map((p, i) => (
                                 <li key={i}>
-                                    <span className="muted">{p.date.toLocaleDateString()}</span> — <b>{Math.round(p.score)}%</b> · {p.title}
+                                    <span className="muted">{p.date.toLocaleDateString()}</span> — <b>{Math.round(p.score)}</b> · {p.title}
                                 </li>
                             ))}
                         </ul>

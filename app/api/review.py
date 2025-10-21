@@ -13,50 +13,99 @@ from app.models.result import Result
 
 router = APIRouter(prefix="/quizzes", tags=["review"])
 
-def _safe_json_loads(s: str | None):
-    if not s:
+def _safe_json_loads(s):
+    """
+    Accepts str | list | dict | None and returns a Python object or None.
+    - If already a list/dict (e.g., JSONB deserialized by SQLAlchemy), return as-is.
+    - If str, try json.loads; if it fails, return None.
+    - Otherwise, return None.
+    """
+    if s is None:
         return None
-    try:
-        return json.loads(s)
-    except Exception:
-        return None
+    if isinstance(s, (list, dict)):
+        return s
+    if isinstance(s, (bytes, bytearray)):
+        try:
+            return json.loads(s.decode("utf-8", errors="ignore"))
+        except Exception:
+            return None
+    if isinstance(s, str):
+        s = s.strip()
+        if not s:
+            return None
+        try:
+            return json.loads(s)
+        except Exception:
+            return None
+    return None
+
 
 def _normalize_item_row(qi: QuizItem) -> Dict[str, Any]:
     """
-    Build a normalized item payload and derive the correct answer text
-    using the new columns:
-      - MCQ: prefer answer_index -> choices[answer_index];
-              if answer_index is null, try matching answer_text inside choices
-      - Non-MCQ: use answer_text directly
+    Build a normalized item payload and derive the correct answer text.
+    Supports:
+      - MCQ via answer_index -> choices[answer_index]
+      - If index missing, try matching answer_text inside choices
+      - Non-MCQ via answer_text
+    Also tolerates choices being:
+      - list[str]
+      - list[dict] with keys like 'text' or 'label'
     """
     choices = _safe_json_loads(qi.choices)
-    qtype = (qi.type or "").lower()
+    qtype = (qi.type or "").lower().strip()
+
+    def choice_to_text(c):
+        if isinstance(c, str):
+            return c
+        if isinstance(c, dict):
+            # common shapes
+            for k in ("text", "label", "value", "answer"):
+                if k in c and isinstance(c[k], str):
+                    return c[k]
+        return str(c)
 
     correct_text = None
     if qtype == "mcq":
         idx = qi.answer_index
-        # Fallback: if index missing, try to resolve by text
-        if idx is None and isinstance(choices, list) and qi.answer_text:
+        # allow string index (e.g., "2")
+        if isinstance(idx, str):
             try:
-                idx = choices.index(qi.answer_text)
-            except ValueError:
+                idx = int(idx)
+            except Exception:
                 idx = None
+
+        # first, try by index
         if isinstance(choices, list) and isinstance(idx, int) and 0 <= idx < len(choices):
-            correct_text = str(choices[idx])
-        else:
-            # last fallback: if we have an answer_text and no valid index, use that
+            correct_text = choice_to_text(choices[idx])
+
+        # fallback: try to locate answer_text within choices
+        if not correct_text and isinstance(choices, list) and qi.answer_text:
+            at = (qi.answer_text or "").strip()
+            for c in choices:
+                if choice_to_text(c).strip() == at:
+                    correct_text = at
+                    break
+
+        # last fallback
+        if not correct_text:
             correct_text = (qi.answer_text or "").strip() or None
     else:
         correct_text = (qi.answer_text or "").strip() or None
+
+    # Normalize output choices to strings if present
+    norm_choices = None
+    if isinstance(choices, list):
+        norm_choices = [choice_to_text(c) for c in choices]
 
     return {
         "id": qi.id,
         "type": qi.type,
         "question": qi.question,
-        "choices": choices if isinstance(choices, list) else None,
+        "choices": norm_choices,
         "correct_text": correct_text,
         "explanation": qi.explanation or "",
     }
+
 
 def _load_result_answers_if_exist(db: Session, result_id: int) -> Dict[int, Dict[str, Any]]:
     """Try to read per-item answers from an optional table `result_answers`.
@@ -90,6 +139,7 @@ def _find_best_result(db: Session, user_id: int, quiz_id: int) -> Result | None:
         .first()
     )
 
+
 def _assemble_review(db: Session, user: User, quiz_id: int) -> Dict[str, Any]:
     q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
     if not q:
@@ -121,15 +171,25 @@ def _assemble_review(db: Session, user: User, quiz_id: int) -> Dict[str, Any]:
             "correct": (ans or {}).get("correct", None),
         })
 
+    raw = float(best.score) if best else None
+    total = len(items)
+    percent = (raw / total * 100.0) if (raw is not None and total > 0) else None
+
     payload: Dict[str, Any] = {
         "quiz_id": q.id,
         "title": q.title,
         "mode": q.mode,
-        "score": float(best.score) if best else None,
+        "raw_correct": raw,
+        "total": total,
+        "percent": percent,
+        # keep legacy field for older clients; set to percent for UI expectations
+        "score": percent,
         "taken_at": str(best.taken_at) if best else None,
         "items": rows,
     }
     return payload
+
+
 
 @router.get("/{quiz_id}/best")
 def best_attempt_review(
