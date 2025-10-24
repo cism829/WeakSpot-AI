@@ -47,7 +47,7 @@ def _build_system():
 
     )
 
-def _build_user_prompt(subject: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
+def _build_user_prompt(subject: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
     """
     Build a detailed instruction for the model.
     """
@@ -87,12 +87,15 @@ def _build_user_prompt(subject: str, difficulty: str, n: int, item_types: List[s
     )
 
     return (
+    f"You are generating a quiz for grade level: {grade_level}.\n"
     f"Create {n} questions of {subject} by {difficulty} level across these item types: {types_list}.\n"
     f"{note_clause}"
     "Return STRICT JSON matching this schema:\n"
     f"{schema_hint}\n"
     "Rules:\n"
-    "- Questions must be solvable without external info beyond common "
+    "- Questions must be solvable without external info beyond common \n"
+    "- Answer must be correct, precise, and unambiguous.\n"
+    "- Use age-appropriate language and math/content standards for {grade_level}.\n"
     f"{subject} knowledge and any provided context.\n"
     "- MCQ must use exactly 4 distinct choices.\n"
     '- True/False must use exactly \"True\" or \"False\" in answer_text.\n'
@@ -190,7 +193,7 @@ def _coerce_item(it: dict) -> dict | None:
 
     return None
 
-def _gemini_generate(subject: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None):
+def _gemini_generate(subject: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None):
     """
     Call Gemini to generate items; then parse and normalize them.
     """
@@ -209,7 +212,7 @@ def _gemini_generate(subject: str, difficulty: str, n: int, item_types: List[str
             response_schema=QuizItems,              # Pydantic schema -> structured output
         )
 
-        user_prompt = _build_user_prompt(subject, difficulty, n, item_types, note_text)
+        user_prompt = _build_user_prompt(subject, grade_level, difficulty, n, item_types, note_text)
 
         resp = client.models.generate_content(
             model=model_name,
@@ -294,6 +297,7 @@ def generate_ai(
     """
     items = _gemini_generate(
         subject=payload.subject,
+        grade_level=payload.grade_level,
         difficulty=payload.difficulty,
         n=payload.num_items,
         item_types=payload.types,
@@ -321,11 +325,12 @@ def generate_ai_from_note(
     """
     Generate a quiz using Gemini *with* note context (from a notes table).
     """
-    note = db.execute(text("SELECT content FROM notes WHERE file=:nid"), {"nid": payload.note_id}).fetchone()
+    note = db.execute(text("SELECT content FROM notes WHERE note_id=:nid"), {"nid": payload.note_id}).fetchone()
     note_text = note[0] if note else ""
 
     items = _gemini_generate(
         subject=payload.subject,
+        grade_level=payload.grade_level,
         difficulty=payload.difficulty,
         n=payload.num_items,
         item_types=payload.types,

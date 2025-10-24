@@ -17,7 +17,8 @@ class User(Base):
     coins_balance = Column(Integer, default=0)
     total_points = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    grade_level = Column(String(32), nullable=True)  # validated in schema
+
     
     # Relationship
     quizzes = relationship("Quiz", back_populates="user", cascade="all, delete-orphan")

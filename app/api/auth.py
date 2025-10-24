@@ -13,7 +13,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def register(user_in: RegisterIn, db: Session = Depends(get_db)):
     username = user_in.username.lower()
     email = user_in.email.lower()
-    
+    grade_level = user_in.grade_level
     # Check if user already exists
     existing_user = db.query(User).filter((User.username == username) | (User.email == email)).first()
     if existing_user:
@@ -26,12 +26,14 @@ def register(user_in: RegisterIn, db: Session = Depends(get_db)):
         first_name=user_in.first_name,
         last_name=user_in.last_name,
         email=email,
-        password=hashed_password
+        password=hashed_password,
+        role= user_in.role,
+        grade_level= grade_level
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-
+    print(grade_level)
     return HTTPException(status_code=status.HTTP_200_OK, detail="User registered successfully")
 
 @router.post("/login")
@@ -58,7 +60,7 @@ def login(login_in: LoginIn, response: Response, db: Session = Depends(get_db)):
     )
         
     # Return user id, name, email
-    return {"id": user.id, "username": user.username, "email": user.email,
+    return {"id": user.id, "username": user.username, "email": user.email, "grade_level": user.grade_level,
             "coins_earned_total": user.coins_earned_total, "coins_balance": user.coins_balance,
             "total_points": user.total_points}
 

@@ -1,8 +1,7 @@
-
-import { useAuth } from "../context/Authcontext";
 import { useNavigate, Link } from "react-router-dom";
 import { useState } from "react";
 import { authRegister } from "../lib/api";
+import { ROLES, GRADE_LEVELS } from "../lib/grades";
 
 function Register() {
     const navigate = useNavigate();
@@ -11,30 +10,39 @@ function Register() {
         first_name: "",
         last_name: "",
         email: "",
-        password: ""
+        password: "",
+        grade_level: GRADE_LEVELS?.[0] ?? "Other", 
+        role: ROLES?.[0] ?? "student",             
     });
     const [err, setErr] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // ✅ shared change handler for inputs/selects
+    const onChange = (e) => {
+        const { name, value } = e.target;
+        setForm((f) => ({ ...f, [name]: value }));
+    };
 
     async function onSubmit(e) {
         e.preventDefault();
         setErr("");
         setSubmitting(true);
         try {
-        await authRegister(form); // expect 200/201; no token needed
-        setForm({
-            username: "",
-            first_name: "",
-            last_name: "",
-            email: "",
-            password: ""
-        });
-        // redirect to login and pass a flag to show a success message there
-        navigate("/login", { state: { registered: true, emailPrefill: form.email } });
+            await authRegister(form);
+            setForm({
+                username: "",
+                first_name: "",
+                last_name: "",
+                email: "",
+                password: "",
+                grade_level: GRADE_LEVELS?.[0] ?? "Other",
+                role: ROLES?.[0] ?? "student",
+            });
+            navigate("/login", { state: { registered: true, emailPrefill: form.email } });
         } catch (e) {
-        setErr(e.message || "Registration failed");
+            setErr(e.message || "Registration failed");
         } finally {
-        setSubmitting(false);
+            setSubmitting(false);
         }
     }
 
@@ -46,31 +54,58 @@ function Register() {
                 <form onSubmit={onSubmit} className="form">
                     <label className="field">
                         <span>Username</span>
-                        <input value={form.username} onChange={e=>setForm({...form, username:e.target.value})} required />
+                        <input name="username" value={form.username} onChange={onChange} required />
                     </label>
                     <label className="field">
                         <span>First name</span>
-                        <input value={form.first_name} onChange={e=>setForm({...form, first_name:e.target.value})} required />
+                        <input name="first_name" value={form.first_name} onChange={onChange} required />
                     </label>
                     <label className="field">
                         <span>Last name</span>
-                        <input value={form.last_name} onChange={e=>setForm({...form, last_name:e.target.value})} required />
+                        <input name="last_name" value={form.last_name} onChange={onChange} required />
                     </label>
                     <label className="field">
                         <span>Email</span>
-                        <input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} required />
+                        <input type="email" name="email" value={form.email} onChange={onChange} required />
                     </label>
+
+                    <label className="field">
+                        <span>Grade Level</span>
+                        <select name="grade_level" value={form.grade_level} onChange={onChange} required>
+                            {/* Optional placeholder:
+              <option value="" disabled>Choose grade level…</option> */}
+                            {GRADE_LEVELS.map((g) => (
+                                <option key={g} value={g}>{g}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="field">
+                        <span>Role (e.g., student, professor, tutor)</span>
+                        <select name="role" value={form.role} onChange={onChange} required>
+                            {/* Optional placeholder:
+              <option value="" disabled>Choose role…</option> */}
+                            {ROLES.map((r) => (
+                                <option key={r} value={r}>{r}</option>
+                            ))}
+                        </select>
+                    </label>
+
                     <label className="field">
                         <span>Password</span>
-                        <input type="password" value={form.password} onChange={e=>setForm({...form, password:e.target.value})} required />
+                        <input type="password" name="password" value={form.password} onChange={onChange} required />
                     </label>
-                    <button className="btn btn--primary">Register</button>
-                    <p className="muted mt">Already have an account? <Link to="/login">Sign in</Link></p>
+
+                    <button disabled={submitting} className="btn btn--primary">
+                        {submitting ? "Registering…" : "Register"}
+                    </button>
+                    <p className="muted mt">
+                        Already have an account? <Link to="/login">Sign in</Link>
+                    </p>
                 </form>
             </div>
         </div>
     );
 }
+
 export default Register;
-
-

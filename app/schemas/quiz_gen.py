@@ -6,6 +6,7 @@ QuizType = Literal["mcq", "short_answer", "fill_blank", "true_false"]
 class GenerateBase(BaseModel):
     user_id: int = 1
     subject: str = "general"
+    grade_level: str 
     difficulty: Literal["easy", "medium", "hard"] = "medium"
     mode: Literal["practice", "exam"] = "practice"
     num_items: int = Field(10, ge=1, le=50)

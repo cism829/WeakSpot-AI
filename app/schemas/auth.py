@@ -6,7 +6,8 @@ class RegisterIn(BaseModel):
     last_name: str
     email: EmailStr
     password: str
-    
+    role: str
+    grade_level: str | None = None
 class LoginIn(BaseModel):
     username_or_email: str
     password: str

@@ -2,6 +2,8 @@
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import { req } from "../lib/api";
+import { GRADE_LEVELS } from "../lib/grades";
+import { useAuth } from "../context/Authcontext";
 
 const TYPES = [
     { key: "mcq", label: "Multiple Choice" },
@@ -12,6 +14,7 @@ const TYPES = [
 
 export default function QuizGenerator() {
     const nav = useNavigate();
+    const { user } = useAuth(); // ✅ get user
 
     const [subject, setSubject] = useState("general");
     const [difficulty, setDifficulty] = useState("medium");
@@ -19,10 +22,19 @@ export default function QuizGenerator() {
     const [num, setNum] = useState(10);
     const [types, setTypes] = useState(["mcq"]);
 
+    // ✅ safe default: user's grade, else first constant, else "Other"
+    const defaultGrade = user?.grade_level ?? GRADE_LEVELS?.[0] ?? "Other";
+    const [gradeLevel, setGradeLevel] = useState(defaultGrade);
+
+    // keep grade in sync if user loads later
+    useEffect(() => {
+        if (user?.grade_level) setGradeLevel(user.grade_level);
+    }, [user]);
+
     // notes
     const [useNote, setUseNote] = useState(false);
-    const [notes, setNotes] = useState([]);     // [{id, name, filename}]
-    const [noteName, setNoteName] = useState("");     // user selects by file name
+    const [notes, setNotes] = useState([]);         // [{id, name, filename}]
+    const [noteName, setNoteName] = useState("");   // selects by file name
 
     const [submitting, setSubmitting] = useState(false);
     const [err, setErr] = useState("");
@@ -38,7 +50,6 @@ export default function QuizGenerator() {
                 const arr = Array.isArray(res) ? res : (res?.notes || res?.items || []);
                 const norm = (arr || []).map((n) => ({
                     id: Number(n.id),
-                    // prefer filename; fallback to name/title
                     name: String(n.filename || n.name || n.title || `Note ${n.id}`),
                     filename: String(n.filename || n.name || n.title || `Note ${n.id}`),
                 }));
@@ -77,12 +88,14 @@ export default function QuizGenerator() {
             }
         }
 
+        // ✅ include grade_level; if your backend expects "topic", send that too
         const payload = {
-            subject,
+            topic: subject,                  // or "subject" if your API uses that
             difficulty,
             mode,
             num_items: Number(num),
             types,
+            grade_level: gradeLevel,         // ✅ important
         };
 
         try {
@@ -94,7 +107,6 @@ export default function QuizGenerator() {
             if (!data?.quiz_id) throw new Error("Generation succeeded but no quiz_id returned.");
 
             if (mode === "exam") {
-                // for exams, go to the list (you move into started there)
                 nav("/exam");
             } else {
                 nav(`/quiz/${data.quiz_id}`);
@@ -120,7 +132,7 @@ export default function QuizGenerator() {
             )}
 
             {/* Basics */}
-            <Card title="Basics" subtitle="Subject, difficulty, mode, and length">
+            <Card title="Basics" subtitle="Subject, difficulty, mode, grade, and length">
                 <div className="grid grid--2" style={{ gap: 14 }}>
                     <label>
                         <div className="muted">Subject</div>
@@ -142,6 +154,15 @@ export default function QuizGenerator() {
                             <option value="easy">easy</option>
                             <option value="medium">medium</option>
                             <option value="hard">hard</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <div className="muted">Grade level (defaults to your profile)</div>
+                        <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)}>
+                            {Array.isArray(GRADE_LEVELS) && GRADE_LEVELS.length
+                                ? GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)
+                                : <option value={gradeLevel}>{gradeLevel}</option>}
                         </select>
                     </label>
 
@@ -198,7 +219,7 @@ export default function QuizGenerator() {
             </Card>
 
             {/* Notes */}
-            <Card title="Notes0" subtitle="Generate from one of your uploaded notes">
+            <Card title="Notes" subtitle="Generate from one of your uploaded notes">
                 <label className="row" style={{ alignItems: "center", gap: 10 }}>
                     <input
                         type="checkbox"
@@ -219,7 +240,6 @@ export default function QuizGenerator() {
                             >
                                 <option value="">-- Select a note --</option>
                                 {notes.map(n => {
-                                    // display filename; if duplicates exist, add (#id) to disambiguate
                                     const dupCount = notes.filter(x => (x.filename || x.name) === (n.filename || n.name)).length;
                                     const display = dupCount > 1
                                         ? `${n.filename || n.name} (#${n.id})`
@@ -247,7 +267,6 @@ export default function QuizGenerator() {
                         </label>
                     </div>
                 )}
-                
             </Card>
 
             {/* Actions */}
@@ -268,7 +287,7 @@ export default function QuizGenerator() {
             <style>{`
         .chip { font-size: 14px; }
         .chip--active { font-weight: 600; }
-      `}</style>
+        `}</style>
         </div>
     );
 }

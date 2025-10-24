@@ -111,7 +111,8 @@ export default function Profile() {
                         <div><strong>Name:</strong> {fullName}</div>
                         <div><strong>Username:</strong> {user?.username || "—"}</div>
                         <div><strong>Email:</strong> {user?.email || "—"}</div>
-                        <div className="muted" style={{ marginTop: 4 }}><strong>Role:</strong> {user?.role || "user"}</div>
+                        <div><strong>Grade level:</strong> {user?.grade_level || "—"}</div>
+                        <div><strong>Role:</strong>{user?.role}</div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                         <button className="btn btn--light" onClick={refresh} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
