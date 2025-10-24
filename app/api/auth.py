@@ -71,7 +71,7 @@ def logout(response: Response):
 
 @router.get("/me")
 def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
-    return {"id": current_user.id, "username": current_user.username, "email": current_user.email,
+    return {"id": current_user.id, "username": current_user.username, "email": current_user.email, "grade_level": current_user.grade_level,
             "first_name": current_user.first_name, "last_name": current_user.last_name, "role": current_user.role,
             "coins_earned_total": current_user.coins_earned_total, "coins_balance": current_user.coins_balance,
             "total_points": current_user.total_points}
