@@ -24,6 +24,8 @@ import Profile from "./pages/Profile";
 import Exam from "./pages/Exam";
 import Quiz from "./pages/Quiz";
 import QuizFeedback from "./pages/QuizFeedback";
+import Chat from "./pages/Chat";
+import CreateRoom from "./pages/CreateRoom";
 
 // Protected Route wrapper
 function PrivateRoute({ children }) {
@@ -62,6 +64,9 @@ function App() {
                 <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
                 <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
                 <Route path="/studygroups" element={<PrivateRoute><StudyGroups /></PrivateRoute>} />
+                <Route path="/chat/:room" element={<PrivateRoute><Chat /></PrivateRoute>} />
+                {/* if someone hits /chat without a room, send them to Study Groups */}
+                <Route path="/chat" element={<Navigate to="/studygroups" replace />} />                <Route path="/createroom" element={<PrivateRoute><CreateRoom /></PrivateRoute>} />
                 <Route path="/notes-analysis" element={<PrivateRoute><NotesAnalysis /></PrivateRoute>} />
                 <Route path="/security" element={<PrivateRoute><SecuritySettings /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />

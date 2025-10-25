@@ -9,7 +9,9 @@ from app.api.leaderboard import router as leaderboard_router
 from app.api.exam import router as exam_router
 from app.api.review import router as review_router
 from app.api.flashcards import router as flashcards_router
-
+from app.api.groupchat import router as groupchat_router
+from app.api.rooms import router as rooms_router
+from app.api.fileUpload import router as fileupload_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Tutor - Backend", version="1.0.0")
@@ -34,3 +36,6 @@ app.include_router(leaderboard_router)
 app.include_router(exam_router)
 app.include_router(review_router)
 app.include_router(flashcards_router)
+app.include_router(groupchat_router)
+app.include_router(rooms_router)
+app.include_router(fileupload_router)

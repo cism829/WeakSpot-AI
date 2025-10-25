@@ -29,3 +29,7 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    file = relationship("File", back_populates="user", cascade="all, delete-orphan")
+    messages = relationship("Messages", back_populates="user", cascade="all, delete-orphan")
+    room_infos = relationship("RoomInfo", back_populates="user", cascade="all, delete-orphan")
+    
