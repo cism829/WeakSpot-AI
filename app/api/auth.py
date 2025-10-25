@@ -1,12 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from app.core.db import get_db
-from app.core.security import get_password_hash, verify_password, create_access_token, get_current_user
-from app.schemas.auth import RegisterIn, LoginIn
+from app.core.security import get_password_hash, verify_password, create_access_token, get_current_user, make_backup_codes, hash_list
+from app.schemas.auth import RegisterIn, LoginIn, SecurityOut, PrivacyIn, AlertsIn, PasswordIn, TOTPStartOut, TOTPConfirmIn, TOTPConfirmOut
 from app.models.user import User
 from app.core.config import settings
 from typing import Annotated
-
+try:
+    import pyotp
+except ImportError:
+    pyotp = None
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", status_code=status.HTTP_200_OK)
@@ -75,3 +78,102 @@ def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
             "first_name": current_user.first_name, "last_name": current_user.last_name, "role": current_user.role,
             "coins_earned_total": current_user.coins_earned_total, "coins_balance": current_user.coins_balance,
             "total_points": current_user.total_points}
+    
+@router.get("/security", response_model=SecurityOut)
+def get_security(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    sessions = [
+        {"id": "current", "device": "This device", "ip": "0.0.0.0", "last": "Now", "current": True}
+    ]
+    return SecurityOut(
+        twoFAEnabled=bool(getattr(user, "twofa_enabled", False)),
+        privacy=PrivacyIn(
+            public_profile=bool(getattr(user, "public_profile", False)),
+            public_leaderboard=bool(getattr(user, "public_leaderboard", True)),
+        ),
+        alerts=AlertsIn(
+            new_device=bool(getattr(user, "alerts_new_device", True)),
+            password_change=bool(getattr(user, "alerts_password_change", True)),
+            twofa_change=bool(getattr(user, "alerts_twofa_change", True)),
+        ),
+        sessions=sessions,
+    )
+
+@router.post("/privacy")
+def update_privacy(payload: PrivacyIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    user.public_profile = payload.public_profile
+    user.public_leaderboard = payload.public_leaderboard
+    db.add(user); db.commit()
+    return {"ok": True}
+
+@router.post("/security/password")
+def change_password(payload: PasswordIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not verify_password(payload.current, user.password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    user.password = get_password_hash(payload.new)
+    # optional sign-out-others: bump token_version if your model has it
+    if hasattr(user, "token_version"):
+        user.token_version = (user.token_version or 0) + 1
+    db.add(user); db.commit()
+    return {"ok": True}
+
+@router.post("/security/2fa/totp/start", response_model=TOTPStartOut)
+def start_totp(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if pyotp is None:
+        raise HTTPException(status_code=500, detail="pyotp is not installed on server.")
+    secret = pyotp.random_base32()
+    issuer = "WeakSpotAI"
+    label = f"{issuer}:{user.email}"
+    otpauth = pyotp.totp.TOTP(secret).provisioning_uri(name=label, issuer_name=issuer)
+    user.twofa_secret = secret  # store but not enabled yet
+    db.add(user); db.commit()
+    return TOTPStartOut(secret=secret, otpauth=otpauth, qr=None)
+
+@router.post("/security/2fa/totp/confirm", response_model=TOTPConfirmOut)
+def confirm_totp(payload: TOTPConfirmIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if pyotp is None or not getattr(user, "twofa_secret", None):
+        raise HTTPException(status_code=400, detail="TOTP enrollment not started.")
+    totp = pyotp.TOTP(user.twofa_secret)
+    if not totp.verify(payload.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid code.")
+    # return plaintext codes once; store hashed
+    codes = _make_backup_codes()
+    user.twofa_backup_codes = "\n".join(_hash_list(codes))
+    user.twofa_enabled = True
+    db.add(user); db.commit()
+    return TOTPConfirmOut(ok=True, backup_codes=codes)
+
+@router.post("/security/2fa/disable")
+def disable_2fa(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    user.twofa_enabled = False
+    user.twofa_secret = None
+    user.twofa_backup_codes = None
+    if hasattr(user, "token_version"):
+        user.token_version = (user.token_version or 0) + 1
+    db.add(user); db.commit()
+    return {"ok": True}
+
+@router.delete("/sessions/others")
+def sign_out_others(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if hasattr(user, "token_version"):
+        user.token_version = (user.token_version or 0) + 1
+        db.add(user); db.commit()
+    return {"ok": True}
+
+@router.post("/security/alerts")
+def update_alerts(payload: AlertsIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    user.alerts_new_device = payload.new_device
+    user.alerts_password_change = payload.password_change
+    user.alerts_twofa_change = payload.twofa_change
+    db.add(user); db.commit()
+    return {"ok": True}
+
+from pydantic import BaseModel
+class DeleteIn(BaseModel):
+    confirm: str
+
+@router.delete("")
+def delete_account(payload: DeleteIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if payload.confirm != "DELETE":
+        raise HTTPException(status_code=400, detail='Type "DELETE" to confirm.')
+    db.delete(user); db.commit()
+    return {"ok": True}

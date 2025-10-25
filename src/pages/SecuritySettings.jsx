@@ -1,8 +1,25 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "../components/Card";
+import { useAuth } from "../context/Authcontext";
+import {
+    getSecurity,
+    updatePrivacy,
+    changePassword,
+    startTotpEnrollment,
+    confirmTotp,
+    disable2fa,
+    signOutOtherSessions,
+    updateAlerts,
+    deleteAccount,
+} from "../lib/api";
 
 export default function SecuritySettings() {
-    // ---- Basic state (pretend values; wire to your API) ----
+    const { user, setUser } = useAuth();
+    const token = user?.token;
+
+    const [loading, setLoading] = useState(true);
+    const [err, setErr] = useState("");
+
     const [twoFAEnabled, setTwoFAEnabled] = useState(false);
     const [publicProfile, setPublicProfile] = useState(false);
     const [publicLeaderboard, setPublicLeaderboard] = useState(true);
@@ -19,62 +36,94 @@ export default function SecuritySettings() {
     const [pwdForm, setPwdForm] = useState({ current: "", next: "", confirm: "", show: false });
     const strongPwd = useMemo(() => strengthScore(pwdForm.next) >= 3, [pwdForm.next]);
 
-    const [sessions, setSessions] = useState([
-        // Example data; load from /me/sessions
-        { id: "cur", device: "Windows • Chrome", ip: "100.26.9.20", last: "Now", current: true },
-        { id: "s2", device: "iPhone • Safari", ip: "73.165.33.19", last: "2 days ago" },
-    ]);
-
+    const [sessions, setSessions] = useState([]);
     const [danger, setDanger] = useState({ confirmText: "", busy: false });
 
     useEffect(() => {
-        // TODO: fetch settings from backend
-        // setTwoFAEnabled(res.twoFAEnabled)
-        // setPublicProfile(res.publicProfile)
-        // setPublicLeaderboard(res.publicLeaderboard)
-        // setEmailAlerts(res.alerts)
-        // setSessions(res.sessions)
-    }, []);
+        if (!token) return;
+        (async () => {
+            try {
+                setLoading(true);
+                setErr("");
+                const res = await getSecurity(token);
+                // shape: { twoFAEnabled, privacy:{public_profile,public_leaderboard}, alerts:{...}, sessions:[...] }
+                setTwoFAEnabled(!!res.twoFAEnabled);
+                setPublicProfile(!!res.privacy?.public_profile);
+                setPublicLeaderboard(!!res.privacy?.public_leaderboard);
+                setEmailAlerts({
+                    newDevice: !!res.alerts?.new_device,
+                    passwordChange: !!res.alerts?.password_change,
+                    twoFAChange: !!res.alerts?.twofa_change,
+                });
+                setSessions(Array.isArray(res.sessions) ? res.sessions : []);
+            } catch (e) {
+                setErr(readErr(e));
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [token]);
 
-    // ---- Handlers (replace stubs with your API calls) ----
+    // ---- Handlers (now calling your backend) ----
     async function handleSavePrivacy() {
-        // TODO: await api.updatePrivacy({ publicProfile, publicLeaderboard })
-        alert("Privacy settings saved.");
+        try {
+            setErr("");
+            await updatePrivacy(
+                { public_profile: publicProfile, public_leaderboard: publicLeaderboard },
+                token
+            );
+            alert("Privacy settings saved.");
+        } catch (e) {
+            setErr(readErr(e));
+        }
     }
 
     async function handleStartTOTP() {
-        // TODO: const res = await api.security.startTotpEnrollment()
-        // setTotp({ secret: res.secret, otpauth: res.otpauth, qrcodeDataUrl: res.qr })
-        setTotp({
-            secret: "JBSWY3DPEHPK3PXP",
-            otpauth: "otpauth://totp/WeakSpotAI:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=WeakSpotAI",
-            qrcodeDataUrl: "", // optional data URL of QR
-        });
+        try {
+            setErr("");
+            const res = await startTotpEnrollment(token);
+            setTotp({
+                secret: res.secret || "",
+                otpauth: res.otpauth || "",
+                qrcodeDataUrl: res.qr || "",
+            });
+        } catch (e) {
+            setErr(readErr(e));
+        }
     }
 
     async function handleConfirmTOTP(code) {
-        // TODO: await api.security.confirmTotp({ code })
-        setTwoFAEnabled(true);
-        setBackupCodes(
-            Array.from({ length: 10 }, () => Math.random().toString(36).slice(2, 10).toUpperCase())
-        );
+        try {
+            if (!code || code.length < 6) return alert("Enter the 6-digit code.");
+            setErr("");
+            const res = await confirmTotp(code, token);
+            setTwoFAEnabled(true);
+            setBackupCodes(res.backup_codes || []);
+            alert("Two-factor authentication enabled.");
+        } catch (e) {
+            setErr(readErr(e));
+        }
     }
 
     async function handleDisable2FA() {
-        // TODO: await api.security.disable2fa()
-        setTwoFAEnabled(false);
-        setBackupCodes([]);
+        try {
+            setErr("");
+            await disable2fa(token);
+            setTwoFAEnabled(false);
+            setBackupCodes([]);
+            setTotp({ secret: "", otpauth: "", qrcodeDataUrl: "" });
+            alert("Two-factor authentication disabled.");
+        } catch (e) {
+            setErr(readErr(e));
+        }
     }
 
     async function handleRegisterPasskey() {
+        // Placeholder; needs WebAuthn ceremony + backend challenge endpoints
         try {
             setRegisteringWebAuthn(true);
-            // TODO: navigator.credentials.create(...) with backend challenge
-            setTimeout(() => {
-                alert("Passkey registered (stub).");
-                setRegisteringWebAuthn(false);
-            }, 600);
-        } catch {
+            alert("Passkey registration flow not implemented yet.");
+        } finally {
             setRegisteringWebAuthn(false);
         }
     }
@@ -83,37 +132,72 @@ export default function SecuritySettings() {
         e.preventDefault();
         if (pwdForm.next !== pwdForm.confirm) return alert("Passwords do not match.");
         if (!strongPwd) return alert("Choose a stronger password.");
-        // TODO: await api.security.changePassword({ current: pwdForm.current, next: pwdForm.next })
-        alert("Password updated.");
-        setPwdForm({ current: "", next: "", confirm: "", show: false });
+        try {
+            setErr("");
+            await changePassword({ current: pwdForm.current, new: pwdForm.next }, token);
+            alert("Password updated.");
+            setPwdForm({ current: "", next: "", confirm: "", show: false });
+        } catch (e) {
+            setErr(readErr(e));
+        }
     }
 
     async function handleRevokeSession(id) {
-        // TODO: await api.security.revokeSession(id)
-        setSessions((s) => s.filter((x) => x.id !== id || x.current)); // don’t remove current in stub
+        // You only have "sign out other sessions" on backend right now.
+        // If you add a per-session revoke endpoint later, call it here.
+        alert("Per-session revoke not available. Use 'Sign out of other sessions'.");
     }
 
     async function handleSignOutOthers() {
-        // TODO: await api.security.revokeAllOther()
-        setSessions((s) => s.filter((x) => x.current));
+        try {
+            setErr("");
+            await signOutOtherSessions(token);
+            // Keep only the current session in UI
+            setSessions((s) => s.filter((x) => x.current));
+            alert("Signed out of other sessions.");
+        } catch (e) {
+            setErr(readErr(e));
+        }
     }
 
     async function handleSaveAlerts() {
-        // TODO: await api.security.updateAlerts(emailAlerts)
-        alert("Alert preferences saved.");
+        try {
+            setErr("");
+            await updateAlerts(
+                {
+                    new_device: emailAlerts.newDevice,
+                    password_change: emailAlerts.passwordChange,
+                    twofa_change: emailAlerts.twoFAChange,
+                },
+                token
+            );
+            alert("Alert preferences saved.");
+        } catch (e) {
+            setErr(readErr(e));
+        }
     }
 
     async function handleDeleteAccount() {
         if (danger.confirmText !== "DELETE") return alert('Type DELETE to confirm.');
-        setDanger((d) => ({ ...d, busy: true }));
-        // TODO: await api.security.deleteAccount()
-        alert("Account deletion requested (stub).");
-        setDanger({ confirmText: "", busy: false });
+        try {
+            setErr("");
+            setDanger((d) => ({ ...d, busy: true }));
+            await deleteAccount("DELETE", token);
+            alert("Account deleted.");
+            // Optional: log user out client-side
+            setUser?.(null);
+        } catch (e) {
+            setErr(readErr(e));
+        } finally {
+            setDanger({ confirmText: "", busy: false });
+        }
     }
 
     return (
         <div className="container" style={{ maxWidth: 900 }}>
             <h2>🔒 Security Settings</h2>
+            {err && <div className="alert alert--error" style={{ marginBottom: 12 }}>{err}</div>}
+            {loading && <div className="muted" style={{ marginBottom: 12 }}>Loading security settings…</div>}
 
             {/* Two-Factor Authentication */}
             <Card title="Two-Factor Authentication (2FA)" subtitle="Add a second step to sign in" tone="blue">
@@ -129,7 +213,7 @@ export default function SecuritySettings() {
                                         {totp.qrcodeDataUrl ? (
                                             <img alt="TOTP QR" src={totp.qrcodeDataUrl} style={{ width: 160, height: 160 }} />
                                         ) : (
-                                            <code>{totp.otpauth}</code>
+                                            <code style={{ display: "block", wordBreak: "break-all" }}>{totp.otpauth}</code>
                                         )}
                                         <TOTPConfirm onConfirm={handleConfirmTOTP} />
                                     </>
@@ -330,4 +414,12 @@ function CodeList({ codes = [] }) {
             </div>
         </div>
     );
+}
+
+function readErr(e) {
+    if (!e) return "Unknown error";
+    if (typeof e === "string") return e.slice(0, 300);
+    if (e.detail) return String(e.detail).slice(0, 300);
+    if (e.message) return String(e.message).slice(0, 300);
+    try { return JSON.stringify(e).slice(0, 300); } catch { return "Request failed"; }
 }

@@ -117,6 +117,35 @@ export const flashcardsGenerateAIFromNote = ({ note_id, subject, num_items, titl
     body: { note_id, subject, num_items, title },
     token,
   });
+
+// Security (me)
+export const getSecurity = (token) =>
+  req('/auth/security', { token });
+
+export const updatePrivacy = (payload, token) =>
+  req('/auth/privacy', { method: 'POST', body: payload, token });
+
+export const changePassword = (payload, token) =>
+  req('/auth/security/password', { method: 'POST', body: payload, token });
+
+export const startTotpEnrollment = (token) =>
+  req('/auth/security/2fa/totp/start', { method: 'POST', token });
+
+export const confirmTotp = (code, token) =>
+  req('/auth/security/2fa/totp/confirm', { method: 'POST', body: { code }, token });
+
+export const disable2fa = (token) =>
+  req('/auth/security/2fa/disable', { method: 'POST', token });
+
+export const signOutOtherSessions = (token) =>
+  req('/auth/sessions/others', { method: 'DELETE', token });
+
+export const updateAlerts = (payload, token) =>
+  req('/auth/security/alerts', { method: 'POST', body: payload, token });
+
+export const deleteAccount = (confirm, token) =>
+  req('/auth', { method: 'DELETE', body: { confirm }, token });
+
 export const listMyNotes = (token) => req('/notes/', { token });
 
 export const createNote = (note, token) => req('/notes/', { method: 'POST', body: note, token });
