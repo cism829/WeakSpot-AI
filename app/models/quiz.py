@@ -10,6 +10,8 @@ class Quiz(Base):
     note_id = Column(Integer, ForeignKey("notes.id", ondelete="SET NULL"), nullable=True)
 
     title = Column(String(255), nullable=False, default="Generated Quiz")
+    topic = Column(String(255), nullable=True)  # ✅ new
+
     difficulty = Column(String(50), default="medium")
     mode = Column(String(20), default="practice")  # practice | exam
 

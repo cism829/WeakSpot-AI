@@ -17,6 +17,8 @@ export default function QuizGenerator() {
     const { user } = useAuth(); // ✅ get user
 
     const [subject, setSubject] = useState("general");
+    const [topic, setTopic] = useState("");
+
     const [difficulty, setDifficulty] = useState("medium");
     const [mode, setMode] = useState("practice");
     const [num, setNum] = useState(10);
@@ -90,12 +92,13 @@ export default function QuizGenerator() {
 
         // ✅ include grade_level; if your backend expects "topic", send that too
         const payload = {
-            topic: subject,                  // or "subject" if your API uses that
+            subject,
+            topic,
             difficulty,
             mode,
             num_items: Number(num),
             types,
-            grade_level: gradeLevel,         // ✅ important
+            grade_level: gradeLevel,
         };
 
         try {
@@ -132,7 +135,7 @@ export default function QuizGenerator() {
             )}
 
             {/* Basics */}
-            <Card title="Basics" subtitle="Subject, difficulty, mode, grade, and length">
+            <Card title="Basics" subtitle="Subject, topic, difficulty, mode, grade, and length">
                 <div className="grid grid--2" style={{ gap: 14 }}>
                     <label>
                         <div className="muted">Subject</div>
@@ -143,7 +146,16 @@ export default function QuizGenerator() {
                             placeholder="e.g. Biology"
                         />
                     </label>
-
+                    <label>
+                        <div className="muted">Topic</div>
+                        <input
+                            className="input"
+                            value={topic}
+                            onChange={(e) => setTopic(e.target.value)}
+                            placeholder="e.g. Photosynthesis; b/d/p/q letter discrimination; 2.OA.1 two-step"
+                        />
+                    </label>
+                    @@
                     <label>
                         <div className="muted">Difficulty</div>
                         <select

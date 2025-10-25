@@ -47,7 +47,7 @@ def _build_system():
 
     )
 
-def _build_user_prompt(subject: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
+def _build_user_prompt(subject: str, topic: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
     """
     Build a detailed instruction for the model.
     """
@@ -88,7 +88,9 @@ def _build_user_prompt(subject: str, grade_level: str, difficulty: str, n: int, 
 
     return (
     f"You are generating a quiz for grade level: {grade_level}.\n"
-    f"Create {n} questions of {subject} by {difficulty} level across these item types: {types_list}.\n"
+    f"SUBJECT: {subject}\n"
+    f"TOPIC: {topic}\n"
+    f"Create {n} questions in {subject} (topic: {topic}) at {difficulty} level across these item types: {types_list}.\n"    
     f"{note_clause}"
     "Return STRICT JSON matching this schema:\n"
     f"{schema_hint}\n"
@@ -96,7 +98,8 @@ def _build_user_prompt(subject: str, grade_level: str, difficulty: str, n: int, 
     "- Questions must be solvable without external info beyond common \n"
     "- Answer must be correct, precise, and unambiguous.\n"
     "- Use age-appropriate language and math/content standards for {grade_level}.\n"
-    f"{subject} knowledge and any provided context.\n"
+    f"- Use age-appropriate language and standards for {grade_level}.\n"
+    f"- Ensure items align with the stated TOPIC above.\n"
     "- MCQ must use exactly 4 distinct choices.\n"
     '- True/False must use exactly \"True\" or \"False\" in answer_text.\n'
     "- Keep explanations brief (1–2 sentences), precise, and tied to the question.\n"
@@ -193,7 +196,7 @@ def _coerce_item(it: dict) -> dict | None:
 
     return None
 
-def _gemini_generate(subject: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None):
+def _gemini_generate(subject: str, topic: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None):
     """
     Call Gemini to generate items; then parse and normalize them.
     """
@@ -212,7 +215,7 @@ def _gemini_generate(subject: str, grade_level: str, difficulty: str, n: int, it
             response_schema=QuizItems,              # Pydantic schema -> structured output
         )
 
-        user_prompt = _build_user_prompt(subject, grade_level, difficulty, n, item_types, note_text)
+        user_prompt = _build_user_prompt(subject, topic, grade_level, difficulty, n, item_types, note_text)
 
         resp = client.models.generate_content(
             model=model_name,
@@ -253,13 +256,14 @@ def _gemini_generate(subject: str, grade_level: str, difficulty: str, n: int, it
 # ---------- Create Quiz + persist items ----------
 
 def _persist_quiz_and_items(
-    db: Session, *, user_id: int, note_id: int | None, subject: str,
+    db: Session, *, user_id: int, note_id: int | None, subject: str, topic: str | None,
     difficulty: str, mode: str, types: List[str], items: List[dict], source: str
 ) -> int:
     q = Quiz(
         user_id=user_id,
         note_id=note_id,
-        title=f"{subject.title()} - {mode.title().capitalize()}",
+        title=f"{(subject or 'General').title()}" + (f" · {topic}" if topic else "") + f" · {mode.title()}",
+        topic=(topic or None),
         difficulty=difficulty,
         mode=mode,
         source=source,
@@ -297,6 +301,7 @@ def generate_ai(
     """
     items = _gemini_generate(
         subject=payload.subject,
+        topic=payload.topic,
         grade_level=payload.grade_level,
         difficulty=payload.difficulty,
         n=payload.num_items,
@@ -308,6 +313,7 @@ def generate_ai(
         user_id=user.id,
         note_id=None,
         subject=payload.subject,
+        topic=payload.topic,
         difficulty=payload.difficulty,
         mode=payload.mode,
         types=payload.types,
@@ -330,6 +336,7 @@ def generate_ai_from_note(
 
     items = _gemini_generate(
         subject=payload.subject,
+        topic=payload.topic,
         grade_level=payload.grade_level,
         difficulty=payload.difficulty,
         n=payload.num_items,
@@ -342,6 +349,7 @@ def generate_ai_from_note(
         user_id=user.id,
         note_id=payload.note_id,
         subject=payload.subject,
+        topic=payload.topic,
         difficulty=payload.difficulty,
         mode=payload.mode,
         types=payload.types,

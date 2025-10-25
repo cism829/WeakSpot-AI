@@ -23,6 +23,7 @@ export default function Flashcards() {
     const token = user?.token;
 
     // topic
+    const [subject, setSubject] = useState("general");
     const [topic, setTopic] = useState("");
     const [count, setCount] = useState(10);
     const [busyTopic, setBusyTopic] = useState(false);
@@ -30,6 +31,7 @@ export default function Flashcards() {
     // notes
     const [notes, setNotes] = useState([]);
     const [noteQuery, setNoteQuery] = useState("");
+    const [noteSubject, setNoteSubject] = useState("General");
     const [noteTopic, setNoteTopic] = useState("");
     const [noteCount, setNoteCount] = useState(10);
     const [busyNote, setBusyNote] = useState(false);
@@ -111,12 +113,13 @@ export default function Flashcards() {
     // generate from topic
     const onGenerateTopic = async () => {
         if (!topic.trim()) return setErr("Please enter a topic.");
+        if (!subject.trim()) return setErr("Please enter a subject.");
         if (count < 5 || count > 50) return setErr("Number of cards must be between 5 and 50.");
         setBusyTopic(true);
         setErr("");
         try {
             const created = await flashcardsGenerateAI(
-                { subject: topic.trim(), num_items: count, title: `${topic.trim()} — flashcards` },
+                { subject: subject.trim() , topic: topic.trim(), num_items: count, title: `${topic.trim()} — flashcards` },
                 token
             );
             // add to top and open
@@ -148,7 +151,8 @@ export default function Flashcards() {
         try {
             const payload = {
                 note_id: match.id,
-                subject: noteTopic.trim() || match.filename,
+                subject: noteSubject.trim() || "General",
+                topic: noteTopic.trim() || match.filename,
                 num_items: noteCount,
                 title: `Flashcards from ${match.filename}`,
             };
@@ -192,6 +196,10 @@ export default function Flashcards() {
                 {/* Topic-based */}
                 <Card title="Generate flashcards" tone="blue">
                     <label className="field">
+                        <span>Subject</span>
+                        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g., Biology, ELA, Math" />
+                    </label>
+                    <label className="field">
                         <span>Topic</span>
                         <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Photosynthesis" />
                     </label>
@@ -227,7 +235,11 @@ export default function Flashcards() {
                                 </div>
                             </label>
                             <label className="field">
-                                <span>Label/Subject (optional)</span>
+                                <span>Subject</span>
+                                <input value={noteSubject} onChange={(e) => setNoteSubject(e.target.value)} placeholder="e.g., Biology / ELA / Math" />
+                            </label>
+                            <label className="field">
+                                <span>Topic</span>
                                 <input value={noteTopic} onChange={(e) => setNoteTopic(e.target.value)} placeholder="e.g., Unit 2 — Forces" />
                             </label>
                             <label className="field">

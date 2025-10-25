@@ -30,7 +30,7 @@ router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
 # ---------- Prompt builder (mirrors quizzes style) ----------
 
-def _build_flashcard_user_prompt(subject: str, n: int, note_text: str | None = None) -> str:
+def _build_flashcard_user_prompt(subject: str, topic: str, n: int, note_text: str | None = None) -> str:
     """
     Build a JSON-only instruction, same tone/strictness as quizzes, but for flashcards.
     """
@@ -45,7 +45,9 @@ def _build_flashcard_user_prompt(subject: str, n: int, note_text: str | None = N
     note_clause = f"\nContext (from student notes):\n{note_text}\n" if note_text else ""
 
     return (
-        f"Create exactly {n} study flashcards for: {subject}.\n"
+        f"Create exactly {n} study flashcards.\n"
+        f"SUBJECT: {subject}\n"
+        f"TOPIC: {topic}\n"        
         f"{note_clause}"
         "Return STRICT JSON matching this schema:\n"
         f"{schema_hint}\n"
@@ -69,7 +71,7 @@ def _build_flashcard_user_prompt(subject: str, n: int, note_text: str | None = N
 
 # ---------- AI call (copies quizzes' SDK pattern) ----------
 
-def _gemini_generate_flashcards(subject: str, n: int, note_text: str | None = None) -> List[dict]:
+def _gemini_generate_flashcards(subject: str, topic: str, n: int, note_text: str | None = None) -> List[dict]:
     """
     Call Gemini exactly like quizzes: SDK client, response_schema -> parsed output,
     strict JSON, then coerce to a simple dict list with front/back/hint.
@@ -93,7 +95,7 @@ def _gemini_generate_flashcards(subject: str, n: int, note_text: str | None = No
             response_schema=FlashcardItems,          # <-- Pydantic schema
         )
 
-        user_prompt = _build_flashcard_user_prompt(subject, n, note_text)
+        user_prompt = _build_flashcard_user_prompt(subject, topic, n, note_text)
 
         resp = client.models.generate_content(
             model=model_name,
@@ -150,13 +152,14 @@ def generate_ai_flashcards(
     """
     Generate flashcards without note context, then persist and return the set.
     """
-    items = _gemini_generate_flashcards(subject=payload.subject, n=payload.num_items)
+    items = _gemini_generate_flashcards(subject=payload.subject, topic=payload.topic, n=payload.num_items)
 
     fc = Flashcard(
         user_id=user.id,
         note_id=None,
-        title=payload.title or "Generated Flashcards",
+        title=payload.title or (f"{payload.subject} · {payload.topic}".strip(" ·")),
         subject=payload.subject,
+        topic=payload.topic or None,
         source="ai_general",
     )
     db.add(fc)
@@ -172,6 +175,7 @@ def generate_ai_flashcards(
         "id": fc.id,
         "title": fc.title,
         "subject": fc.subject,
+        "topic": fc.topic,
         "source": fc.source,
         "items": [{"id": i.id, "front": i.front, "back": i.back, "hint": i.hint} for i in fc.items],
     }
@@ -206,13 +210,14 @@ def generate_ai_flashcards_from_note(
     if not note_text:
         raise HTTPException(status_code=404, detail="Note not found or has no content")
 
-    items = _gemini_generate_flashcards(subject=payload.subject, n=payload.num_items, note_text=note_text)
+    items = _gemini_generate_flashcards(subject=payload.subject, topic=payload.topic, n=payload.num_items, note_text=note_text)
 
     fc = Flashcard(
         user_id=user.id,
         note_id=payload.note_id,
-        title=payload.title or f"Flashcards from {getattr(note_obj, 'filename', 'note')}",
+        title=payload.title or f"Flashcards from {getattr(note_obj, 'filename', 'note')} · {payload.subject} · {payload.topic}".strip(),
         subject=payload.subject,
+        topic=payload.topic or None,
         source="ai_note",
     )
     db.add(fc)
@@ -228,6 +233,7 @@ def generate_ai_flashcards_from_note(
         "id": fc.id,
         "title": fc.title,
         "subject": fc.subject,
+        "topic": fc.topic,
         "source": fc.source,
         "items": [{"id": i.id, "front": i.front, "back": i.back, "hint": i.hint} for i in fc.items],
     }
@@ -240,6 +246,7 @@ def list_my_flashcards(db: Session = Depends(get_db), user: User = Depends(get_c
             "id": f.id,
             "title": f.title,
             "subject": f.subject,
+            "topic": f.topic,
             "source": f.source,
             "created_at": f.created_at.isoformat() if getattr(f, "created_at", None) else None,
         }
@@ -255,6 +262,7 @@ def get_flashcard(fc_id: int, db: Session = Depends(get_db), user: User = Depend
         "id": fc.id,
         "title": fc.title,
         "subject": fc.subject,
+        "topic": fc.topic,
         "source": fc.source,
         "items": [{"id": i.id, "front": i.front, "back": i.back, "hint": i.hint} for i in fc.items],
     }

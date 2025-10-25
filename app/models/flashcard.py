@@ -11,6 +11,7 @@ class Flashcard(Base):
 
     title = Column(String(255), nullable=False, default="Generated Flashcards")
     subject = Column(String(100), default="general")
+    topic = Column(String(100), default="")
     source = Column(String(20), default="ai_general")  # ai_general | ai_note
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
