@@ -1,62 +1,56 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { roomsCreate } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useAuth } from "../context/Authcontext";
 
 export default function CreateRoom() {
   const { user } = useAuth();
+  const clientId = user?.userId;
   const navigate = useNavigate();
   const [imagePreview, setImagePreview] = useState(null);
-  const [privacy, setPrivacy] = useState("public");
+  const [privacy, setPrivacy] = useState("public")
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    setImagePreview(file ? URL.createObjectURL(file) : null);
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview(null);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const form = e.currentTarget;
-    const fd = new FormData(form);
-
-    // Ensure required fields exist with the exact names backend expects
-    const name = (fd.get("room_name") || "").toString().trim();
-    if (!name) { alert("Title is required"); return; }
-
-    const subject = (fd.get("room_subject") || "").toString();
-    const description = (fd.get("description") || "").toString();
-    const privacyValue = (fd.get("is_private") || "public").toString();
-    let password = "";
-    if (privacyValue === "private") {
-      password = (fd.get("password") || "").toString();
-      if (!pwd) { alert("Password required for a private room"); return; }
-    } else {
-      // avoid sending password for public rooms (some browsers include empty field)
-      password = null;
-    }
+    const formData = new FormData(e.currentTarget);
 
     try {
-      const payload = {
-        room_name: name,
-        room_subject: subject || null,
-        description: description || null,
-        is_private: privacyValue,
-        password,
-      };
-      const data = await roomsCreate(payload);
-      if (!data?.room_id) { alert("Failed to create room"); return; }
-      navigate(`/chat/${data.room_id}`);  // no clientId now
+      const response = await fetch("http://127.0.0.1:8000/rooms", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        alert("Failed to create room");
+      } else {
+        // const clientId = Math.floor(Math.random() * 10) + 1;
+        console.log(data.room_id)
+        console.log(clientId)
+        navigate("/chat/"+data.room_id +"/"+ clientId)
+        // navigate(`/chat/${data.room_id}/${clientId}`);
+      }
     } catch (err) {
       console.error("Error creating room:", err);
-      alert(parseErr(err));
     }
   };
+
   return (
     <div className="create-room-con">
       <h2 className="create-room-title">Create a New Room</h2>
       <div className="room-form">
         <form onSubmit={handleSubmit}>
+          {/* IMAGE UPLOAD SECTION */}
           <div className="form-group">
             <label>Room Image</label>
             <div
@@ -64,7 +58,11 @@ export default function CreateRoom() {
               onClick={() => document.getElementById("room-image-input").click()}
             >
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="image-preview" />
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="image-preview"
+                />
               ) : (
                 <div className="upload-placeholder">
                   <p>Click to upload an image</p>
@@ -82,32 +80,46 @@ export default function CreateRoom() {
             />
           </div>
 
+          {/* TEXT INPUTS */}
           <label>
             Title:
-            <input type="text" name="room_name" required />
+            <input
+              type="text"
+              name="room_name"
+              placeholder="Enter title"
+              required
+            />
           </label>
 
-
+          <label>
+            Description:
+            <input
+              type="text"
+              name="description"
+              placeholder="Brief description"
+            />
+          </label>
 
           <label>
             Subject:
-            <input type="text" name="room_subject" />
+            <input
+              type="text"
+              name="room_subject"
+              placeholder="Enter subject"
+            />
           </label>
-          <label>
-            Description:
-            <input type="text" name="description" />
-          </label>
+
           <label>
             Privacy:
-            <select name="is_private" onChange={(e) => setPrivacy(e.target.value)} value={privacy}>
+            <select name="is_private" onChange={(e) => setPrivacy(e.target.value)}value={privacy}>
               <option value="public">Public</option>
               <option value="private">Private</option>
             </select>
           </label>
-
           {privacy === "private" && (
             <label>
-              <input type="password" name="password" placeholder="Enter Password" required />
+              <input type="password" name="password" placeholder="Enter Password" required>
+              </input>
             </label>
           )}
 

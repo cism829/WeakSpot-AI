@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
-from app.models.rooms import Rooms
-from app.models.messages import Messages
+from app.models.chat import Rooms, Messages
 from app.models.user import User
-from app.schemas.study_groups import RoomOut, MessageOut
-from app.core.db import get_db
 
-router = APIRouter(prefix="/groupchat", tags=["groupchat"])
+router = APIRouter()
 
-
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[str, list[WebSocket]] = {}
@@ -38,32 +40,31 @@ class ConnectionManager:
 
 manager = ConnectionManager()  
 
-def get_user(session: Session, user_id: int):
+
+
+def get_user(session: Session, user_id: str):
     return session.query(User).filter(User.id == user_id).first()
 
 def get_room(session: Session, room_id: int):
     return session.query(Rooms).filter(Rooms.room_id == room_id).first()
 
-@router.get("/rooms", response_model=list[RoomOut])
+@router.get("/rooms")
 def get_rooms(db: Session = Depends(get_db)):
     rooms = db.query(Rooms).all()
-    return [
-        {
-            "room_id": r.room_id,
-            "room_name": r.room_name,
-            "room_subject": r.room_subject,
-            "description": r.description,
-        }
-        for r in rooms
-    ]
+    return [{
+        "room_id": room.room_id, 
+        "room_name": room.room_name,
+        'room_subject': room.room_subject,
+        'description': room.description
+        } for room in rooms]
 
-@router.websocket("/ws/{room_id}/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: int):
+@router.websocket("/ws/{room_id}/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str):
     session = SessionLocal()
     
-    user = get_user(session, user_id)
+    user = get_user(session, client_id)
     if not user:
-        user = User(id=user_id, username=f"guest_{user_id}")
+        user = User(id=client_id, username=f"guest_{client_id}")
         session.add(user)
         session.commit()
         session.refresh(user)

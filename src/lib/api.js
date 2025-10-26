@@ -152,36 +152,7 @@ export const listMyNotes = (token) => req('/notes/', { token });
 
 
 
-// --- Study Groups / Chat specific APIs ---
-export const listRooms = () => req('/groupchat/rooms');                           // GET
-export const checkRoomAccess = (roomId) => req(`/rooms/${roomId}/access`); // user derived from auth on server
-export const verifyRoomAccess = (roomId, { password }) => req(`/rooms/${roomId}/verify`, { method: "POST", body: { password } });
 
-export const roomsCreate = (payload) =>
-  req('/rooms/create', { method: 'POST', body: payload });
-
-// FormData POST helper that includes Authorization if provided
-export async function reqForm(path, { method = "POST", formData, token, headers = {}, credentials = "include" } = {}) {
-  // DO NOT set Content-Type for FormData; browser sets boundary
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: withAuth({ ...headers }, token),
-    body: formData,
-    credentials,
-  });
-  const text = await res.text();
-  let data; try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
-  if (!res.ok) throw new Error(data?.detail || res.statusText || "Request failed");
-  return data;
-}
-
-export const uploadChatFile = (roomId, userId, file, token) => {
-  const fd = new FormData();
-  fd.append("upload", file);
-  // uses env-configurable path, defaults to /fileupload/upload
-  const path = `${UPLOAD_PATH}/${encodeURIComponent(roomId)}/${encodeURIComponent(userId)}`;
-  return reqForm(path, { formData: fd, token });
-};
 
 export const createNote = (note, token) => req('/notes/', { method: 'POST', body: note, token });
 export const deleteNote = (id, token) => req(`/notes/${id}`, { method: 'DELETE', token });
