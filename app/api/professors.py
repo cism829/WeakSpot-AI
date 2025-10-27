@@ -8,7 +8,8 @@ from app.schemas.professor import ProfessorOut, ProfessorCreate, ProfessorUpsert
 import json
 from typing import Optional
 from sqlalchemy import or_
-
+from app.models.connection_request import ConnectionRequest
+from app.schemas.connection import ConnectionCreate, ConnectionOut
 router = APIRouter(prefix="/professors", tags=["professors"])
 
 def _j(s, default):
@@ -124,4 +125,49 @@ def list_professors(
 def search_professors(body: ProfessorSearchIn, db: Session = Depends(get_db)):
     return list_professors(
         q=body.q, dept=body.dept, page=body.page, page_size=body.page_size, db=db
+    )
+    
+@router.post("/{target_id}/request", response_model=ConnectionOut)
+def request_professor(
+    target_id: str,
+    req: ConnectionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Create a connection request to a professor.
+
+    `target_id` may be either:
+      - Professor.id (preferred — what the search list returns)
+      - User.id (fallback — if you call with a user id)
+    We always store the canonical Professor.id in ConnectionRequest.target_id.
+    """
+    # Try as Professor.id first
+    p = db.query(Professor).get(target_id)
+    if not p:
+        # Fallback: treat path as User.id
+        p = db.query(Professor).filter(Professor.user_id == target_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Professor not found")
+
+    c = ConnectionRequest(
+        user_id=current_user.id,
+        target_type="professor",
+        target_id=p.id,  # store Professor.id
+        message=req.message or "",
+        preferred_time=req.preferred_time or "",
+        status="pending",
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    return ConnectionOut(
+        id=c.id,
+        user_id=c.user_id,
+        target_type=c.target_type,
+        target_id=c.target_id,
+        message=c.message,
+        preferred_time=c.preferred_time,
+        status=c.status,
     )

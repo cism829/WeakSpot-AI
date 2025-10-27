@@ -9,6 +9,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
   const StudentLinks = [
     { to: "/students/tutors", label: "Find Tutors" },
     { to: "/students/professors", label: "Connect Professors" },
+    { to: "/students/requests", label: "My Requests" },           
     { to: "/dashboard", label: "Dashboard" },
     { to: "/notes", label: "Notes" },
     { to: "/flashcards", label: "Flashcards" },
@@ -29,6 +30,8 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/professor/materials", label: "Materials" },
     { to: "/professor/students", label: "Students" },
     { to: "/professor/announcements", label: "Announcements" },
+    { to: "/professor/requests", label: "Requests" },
+
     { to: "/professor/profile", label: "Profile" },
   ];
 
@@ -38,6 +41,8 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/tutor/schedule", label: "Schedule" },
     { to: "/tutor/messages", label: "Messages" },
     { to: "/tutor/resources", label: "Resources" },
+    { to: "/tutor/requests", label: "Requests" },                  
+
     { to: "/tutor/profile", label: "Profile" },
   ];
 

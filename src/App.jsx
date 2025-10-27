@@ -10,6 +10,7 @@ import Sidebar from "./components/Sidebar";
 // Pages
 import StudentConnectTutors from "./pages/StudentConnectTutors";
 import StudentConnectProfessors from "./pages/StudentConnectProfessors";
+import StudentRequests from "./pages/StudentRequests";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -40,6 +41,9 @@ import TutorProfile from "./pages/tutor/TutorProfile";
 import TutorSchedule from "./pages/tutor/TutorSchedule";
 import TutorStudents from "./pages/tutor/TutorStudents";
 import TutorResources from "./pages/tutor/TutorResources";
+import ProfessorRequests from "./pages/professor/ProfessorRequests";
+import TutorRequests from "./pages/tutor/TutorRequests";
+
 // Protected Route wrapper
 function PrivateRoute({ children }) {
   const { isLoggedIn } = useAuth();
@@ -76,12 +80,16 @@ function App() {
                 <Route path="/tutor/messages" element={<PrivateRoute><TutorMessages /></PrivateRoute>} />
                 <Route path="/tutor/profile" element={<PrivateRoute><TutorProfile /></PrivateRoute>} />
                 <Route path="/tutor/resources" element={<PrivateRoute><TutorResources /></PrivateRoute>} />
+                <Route path="/tutor/requests" element={<PrivateRoute><TutorRequests /></PrivateRoute>} /> {/* NEW */}
+
                 <Route path="/professor/dashboard" element={<PrivateRoute><ProfessorDashboard /></PrivateRoute>} />
                 <Route path="/professor/classes" element={<PrivateRoute><ProfessorClasses /></PrivateRoute>} />
                 <Route path="/professor/materials" element={<PrivateRoute><ProfessorMaterials /></PrivateRoute>} />
                 <Route path="/professor/students" element={<PrivateRoute><ProfessorStudents /></PrivateRoute>} />
                 <Route path="/professor/announcements" element={<PrivateRoute><ProfessorAnnouncements /></PrivateRoute>} />
                 <Route path="/professor/profile" element={<PrivateRoute><ProfessorProfile /></PrivateRoute>} />
+                <Route path="/professor/requests" element={<PrivateRoute><ProfessorRequests /></PrivateRoute>} /> {/* NEW */}
+
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 <Route path="/generate-quiz" element={<PrivateRoute><QuizGenerator /></PrivateRoute>} />
                 <Route path="/notes" element={<PrivateRoute><Notes /></PrivateRoute>} />
@@ -91,7 +99,8 @@ function App() {
                 <Route path="/studygroups" element={<PrivateRoute><StudyGroups /></PrivateRoute>} />
                 <Route path="/chat/:room" element={<PrivateRoute><Chat /></PrivateRoute>} />
                 {/* if someone hits /chat without a room, send them to Study Groups */}
-                <Route path="/chat" element={<Navigate to="/studygroups" replace />} />                <Route path="/createroom" element={<PrivateRoute><CreateRoom /></PrivateRoute>} />
+                <Route path="/chat" element={<Navigate to="/studygroups" replace />} />
+                <Route path="/createroom" element={<PrivateRoute><CreateRoom /></PrivateRoute>} />
                 <Route path="/notes-analysis" element={<PrivateRoute><NotesAnalysis /></PrivateRoute>} />
                 <Route path="/security" element={<PrivateRoute><SecuritySettings /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
@@ -101,6 +110,8 @@ function App() {
                 <Route path="/quiz-feedback" element={<PrivateRoute><QuizFeedback /></PrivateRoute>} />
                 <Route path="/students/tutors" element={<PrivateRoute><StudentConnectTutors /></PrivateRoute>} />
                 <Route path="/students/professors" element={<PrivateRoute><StudentConnectProfessors /></PrivateRoute>} />
+                <Route path="/students/requests" element={<PrivateRoute><StudentRequests /></PrivateRoute>} /> {/* NEW */}
+
               </Routes>
             </main>
           </div>

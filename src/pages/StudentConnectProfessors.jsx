@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/Authcontext";
-import { searchProfessors, requestProfessor } from "../lib/api";
+import { searchProfessors, requestProfessor, listMyConnections } from "../lib/api";
 
 export default function StudentConnectProfessors() {
   const { user } = useAuth();
@@ -10,6 +10,7 @@ export default function StudentConnectProfessors() {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [statusByProfId, setStatusByProfId] = useState({});
 
   // per-row message/time inputs keyed by professor id
   const [msgById, setMsgById] = useState({});
@@ -25,6 +26,12 @@ export default function StudentConnectProfessors() {
       // empty name => list all; name => search by q
       const q = name.trim() || undefined;
       const data = await searchProfessors({ q }, token);
+      const mine = await listMyConnections(token);
+      const map = {};
+      (mine || []).forEach(r => {
+        if (r.target_type === "professor") map[r.target_id] = r.status;
+      });
+      setStatusByProfId(map);
       setItems(data.items || []);
     } catch (e) {
       setErr(e.message || "Failed to load");
@@ -50,8 +57,8 @@ export default function StudentConnectProfessors() {
         },
         token
       );
-      alert("Request sent!");
-      setMsg(profId, "");
+      setStatusByProfId(s => ({ ...s, [profId]: "pending" }));
+      await load(); setMsg(profId, "");
       setTime(profId, "");
     } catch (e) {
       setErr(e.message || "Failed to request");
@@ -108,6 +115,12 @@ export default function StudentConnectProfessors() {
                     <div className="bold">
                       {p.first_name} {p.last_name}{" "}
                       <span className="muted">({p.email})</span>
+                      {statusByProfId[p.id] && (
+                        <span className={`pill pill--${statusByProfId[p.id] === "accepted" ? "green" : statusByProfId[p.id] === "declined" ? "red" : "blue"}`}
+                          style={{ marginLeft: 8 }}>
+                          {statusByProfId[p.id]}
+                        </span>
+                      )}
                     </div>
                     <div className="muted">
                       Dept: {p.department || "—"} • Courses: {Array.isArray(p.courses) && p.courses.length ? p.courses.join(", ") : "—"}
@@ -116,8 +129,8 @@ export default function StudentConnectProfessors() {
                       Office Hours:{" "}
                       {Array.isArray(p.office_hours) && p.office_hours.length
                         ? p.office_hours
-                            .map((o) => `${o.day || ""} ${o.start || ""}${o.end ? `-${o.end}` : ""}${o.location ? ` @ ${o.location}` : ""}`.trim())
-                            .join("; ")
+                          .map((o) => `${o.day || ""} ${o.start || ""}${o.end ? `-${o.end}` : ""}${o.location ? ` @ ${o.location}` : ""}`.trim())
+                          .join("; ")
                         : "—"}
                     </div>
                     <div className="muted">Rating: {p.rating ?? 0}</div>
@@ -139,11 +152,12 @@ export default function StudentConnectProfessors() {
                     />
                     <button
                       className="btn btn--primary"
-                      disabled={busy}
+                      disabled={busy || statusByProfId[p.id] === "pending" || statusByProfId[p.id] === "accepted"}
                       onClick={() => handleRequest(p.id)}
                     >
-                      Request meeting
-                    </button>
+                      {statusByProfId[p.id] === "pending" ? "Pending…" :
+                        statusByProfId[p.id] === "accepted" ? "Accepted" :
+                          "Request meeting"}                    </button>
                   </div>
                 </li>
               ))}

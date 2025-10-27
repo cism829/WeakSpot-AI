@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/Authcontext";
-import { searchTutors, requestTutor } from "../lib/api";
+import { searchTutors, requestTutor, listMyConnections } from "../lib/api";
 
 export default function StudentConnectTutors() {
   const { user } = useAuth();
@@ -14,7 +14,7 @@ export default function StudentConnectTutors() {
   // per-row message/time
   const [msgById, setMsgById] = useState({});
   const [timeById, setTimeById] = useState({});
-
+  const [statusByTutorId, setStatusByTutorId] = useState({});
   const setMsg = (id, v) => setMsgById((s) => ({ ...s, [id]: v }));
   const setTime = (id, v) => setTimeById((s) => ({ ...s, [id]: v }));
 
@@ -25,6 +25,13 @@ export default function StudentConnectTutors() {
       const q = name.trim() || undefined; // empty => list all
       const data = await searchTutors({ q }, token);
       setItems(data.items || []);
+      // fetch my outgoing requests to mark statuses
+      const mine = await listMyConnections(token);
+      const map = {};
+      (mine || []).forEach(r => {
+        if (r.target_type === "tutor") map[r.target_id] = r.status; // pending/accepted/declined
+      });
+      setStatusByTutorId(map);
     } catch (e) {
       setErr(e.message || "Failed to load");
     } finally {
@@ -49,8 +56,9 @@ export default function StudentConnectTutors() {
         },
         token
       );
-      alert("Request sent!");
-      setMsg(tutorId, "");
+      // reflect 'pending' immediately and refresh list
+      setStatusByTutorId(s => ({ ...s, [tutorId]: "pending" }));
+      await load(); setMsg(tutorId, "");
       setTime(tutorId, "");
     } catch (e) {
       setErr(e.message || "Failed to request");
@@ -107,6 +115,12 @@ export default function StudentConnectTutors() {
                     <div className="bold">
                       {t.first_name} {t.last_name}{" "}
                       <span className="muted">({t.email})</span>
+                      {statusByTutorId[t.id] && (
+                        <span className={`pill pill--${statusByTutorId[t.id] === "accepted" ? "green" : statusByTutorId[t.id] === "declined" ? "red" : "blue"}`}
+                          style={{ marginLeft: 8 }}>
+                          {statusByTutorId[t.id]}
+                        </span>
+                      )}
                     </div>
                     <div className="muted">
                       Subjects: {Array.isArray(t.subjects) && t.subjects.length ? t.subjects.join(", ") : "—"}
@@ -135,11 +149,12 @@ export default function StudentConnectTutors() {
                     />
                     <button
                       className="btn btn--primary"
-                      disabled={busy}
+                      disabled={busy || statusByTutorId[t.id] === "pending" || statusByTutorId[t.id] === "accepted"}
                       onClick={() => handleRequest(t.id)}
                     >
-                      Request session
-                    </button>
+                      {statusByTutorId[t.id] === "pending" ? "Pending…" :
+                        statusByTutorId[t.id] === "accepted" ? "Accepted" :
+                          "Request session"}                    </button>
                   </div>
                 </li>
               ))}

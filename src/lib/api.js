@@ -214,12 +214,21 @@ export const searchProfessors = async (params = {}, token) => {
   }
 };
 export const getProfessor = (id, token) => req(`/professors/${id}`, { token });
-export const requestProfessor = (id, payload, token) =>
-  req(`/professors/${id}/request`, { method: "POST", body: payload, token });
+export const requestProfessor = (profId, body, token) =>
+  req(`/professors/${profId}/request`, { method: "POST", body, token });
 export const upsertProfessor = (payload, token) =>
   req(`/professors`, { method: "POST", body: payload, token });
-export const listMyConnections = (token) => req(`/connections/mine`, { token });
+export const listMyConnections = (token) =>
+  req(`/connections/mine`, { token });
 
+export const listIncomingConnections = (token) =>
+  req(`/connections/incoming`, { token });
+
+export const acceptConnection = (id, token) =>
+  req(`/connections/${id}/accept`, { method: "POST", token });
+
+export const declineConnection = (id, token) =>
+  req(`/connections/${id}/decline`, { method: "POST", token });
 
 
 export const createNote = (note, token) => req('/notes/', { method: 'POST', body: note, token });
