@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any
 from .nlp_runtime import load_nlp
 
 BULLET_RE = re.compile(r"^\s*(?:[-*•·]\s+|\d+[.)]\s+)", re.M)                 # bullets / numbered
@@ -37,7 +37,7 @@ def spacy_sentences(paragraph: str) -> List[str]:
         return re.split(r"(?<=[\.\!\?\:;])\s+", paragraph.strip())
     doc = nlp(paragraph) 
     sents = [s.text.strip() for s in doc.sents]
-    # Join micro-fragments (very short) to next sentence — matches your zip's “merge tiny frags” idea.
+    # Join micro-fragments (very short) to next sentence 
     out: List[str] = []
     buf = ""
     for s in sents:

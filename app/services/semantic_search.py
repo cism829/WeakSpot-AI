@@ -5,7 +5,7 @@ from openai import OpenAI
 
 from app.core.config import settings
 
-DEFAULT_MODEL = getattr(settings, "EMBED_MODEL", None) or "text-embedding-3-small"
+DEFAULT_MODEL = "text-embedding-3-small"
 
 def embed_query(query: str, model: Optional[str] = None) -> list[float]:
     """Return embedding vector for a search query using OpenAI."""

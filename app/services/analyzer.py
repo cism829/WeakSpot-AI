@@ -100,7 +100,7 @@ def analyze_note_text(full_text: str, subject: Optional[str] = None) -> Dict[str
             item["definition"] = d
         enriched.append(item)
 
-    # Sliding windows for flags (keep one-block overlap)
+    # windows for flags (one-block overlap)
     windows = sliding_windows([b["text"] for b in blocks], max_chars=2800, overlap_blocks=1)
     all_flags = []
     for w in windows:

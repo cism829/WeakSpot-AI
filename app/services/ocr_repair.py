@@ -29,7 +29,6 @@ def sentences(text: str) -> List[str]:
         out.append(buf.strip())
     return out
 
-# ====== EXACT PROMPT from your NA zip (system + user) ======
 SYSTEM = (
     "You repair OCR'd academic notes. Replace ONLY the placeholders '(?)' or '...'. "
     "Preserve all other text exactly (casing, punctuation, spacing). "
