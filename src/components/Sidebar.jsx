@@ -7,6 +7,8 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
   if (!isLoggedIn) return null;
 
   const StudentLinks = [
+    { to: "/students/tutors", label: "Find Tutors" },
+    { to: "/students/professors", label: "Connect Professors" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/notes", label: "Notes" },
     { to: "/flashcards", label: "Flashcards" },

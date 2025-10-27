@@ -150,7 +150,25 @@ export const deleteAccount = (confirm, token) =>
 
 export const listMyNotes = (token) => req('/notes/', { token });
 
+// ---- Tutors & Professors ----
+export const searchTutors = (params = {}, token) => {
+  const usp = new URLSearchParams(params).toString();
+  return req(`/tutors${usp ? `?${usp}` : ""}`, { token });
+};
+export const getTutor = (id, token) => req(`/tutors/${id}`, { token });
+export const requestTutor = (id, payload, token) =>
+  req(`/tutors/${id}/request`, { method: "POST", body: payload, token });
 
+export const searchProfessors = (params = {}, token) => {
+  const usp = new URLSearchParams(params).toString();
+  return req(`/professors${usp ? `?${usp}` : ""}`, { token });
+};
+export const getProfessor = (id, token) => req(`/professors/${id}`, { token });
+export const requestProfessor = (id, payload, token) =>
+  req(`/professors/${id}/request`, { method: "POST", body: payload, token });
+export const upsertProfessor = (payload, token) =>
+  req(`/professors`, { method: "POST", body: payload, token });
+export const listMyConnections = (token) => req(`/connections/mine`, { token });
 
 
 

@@ -8,6 +8,8 @@ import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 
 // Pages
+import StudentConnectTutors from "./pages/StudentConnectTutors";
+import StudentConnectProfessors from "./pages/StudentConnectProfessors";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -97,6 +99,8 @@ function App() {
                 <Route path="/quiz" element={<PrivateRoute><Quiz /></PrivateRoute>} />
                 <Route path="/quiz/:id" element={<PrivateRoute><Quiz /></PrivateRoute>} />
                 <Route path="/quiz-feedback" element={<PrivateRoute><QuizFeedback /></PrivateRoute>} />
+                <Route path="/students/tutors" element={<PrivateRoute><StudentConnectTutors /></PrivateRoute>} />
+                <Route path="/students/professors" element={<PrivateRoute><StudentConnectProfessors /></PrivateRoute>} />
               </Routes>
             </main>
           </div>

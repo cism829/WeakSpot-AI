@@ -32,4 +32,6 @@ class User(Base):
     file = relationship("File", back_populates="user", cascade="all, delete-orphan")
     messages = relationship("Messages", back_populates="user", cascade="all, delete-orphan")
     room_infos = relationship("RoomInfo", back_populates="user", cascade="all, delete-orphan")
-    
+    tutors = relationship("Tutor", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    professors = relationship("Professor", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    connection_requests = relationship("ConnectionRequest", back_populates="user", cascade="all, delete-orphan")
