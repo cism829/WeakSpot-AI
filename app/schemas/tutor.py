@@ -20,3 +20,10 @@ class TutorCreate(TutorBase):
 
 class TutorSearchOut(BaseModel):
     items: List[TutorOut]
+class TutorUpsert(BaseModel):
+    bio: Optional[str] = ""
+    subjects: Optional[List[str]] = []
+    hourly_rate: Optional[float] = 0.0
+    rating: Optional[float] = 0.0
+    availability: Optional[List[str]] = []
+    user_id: Optional[str] = None

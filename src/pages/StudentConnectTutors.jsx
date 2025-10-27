@@ -1,55 +1,97 @@
 import React, { useEffect, useState } from "react";
-import Card from "../components/Card";
 import { useAuth } from "../context/Authcontext";
 import { searchTutors, requestTutor } from "../lib/api";
 
 export default function StudentConnectTutors() {
   const { user } = useAuth();
   const token = user?.token;
-  const [q, setQ] = useState("");
-  const [subject, setSubject] = useState("");
+
+  const [name, setName] = useState("");
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [message, setMessage] = useState("");
-  const [preferredTime, setPreferredTime] = useState("");
+
+  // per-row message/time
+  const [msgById, setMsgById] = useState({});
+  const [timeById, setTimeById] = useState({});
+
+  const setMsg = (id, v) => setMsgById((s) => ({ ...s, [id]: v }));
+  const setTime = (id, v) => setTimeById((s) => ({ ...s, [id]: v }));
 
   async function load() {
-    setBusy(true); setErr("");
+    setBusy(true);
+    setErr("");
     try {
-      const data = await searchTutors({ q, subject }, token);
+      const q = name.trim() || undefined; // empty => list all
+      const data = await searchTutors({ q }, token);
       setItems(data.items || []);
-    } catch (e) { setErr(e.message || "Failed to load"); }
-    finally { setBusy(false); }
+    } catch (e) {
+      setErr(e.message || "Failed to load");
+    } finally {
+      setBusy(false);
+    }
   }
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    load(); // list all initially
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleRequest(tutorId) {
-    setBusy(true); setErr("");
+    setBusy(true);
+    setErr("");
     try {
-      await requestTutor(tutorId, { message, preferred_time: preferredTime }, token);
+      await requestTutor(
+        tutorId,
+        {
+          message: msgById[tutorId] || "",
+          preferred_time: (timeById[tutorId] || "").trim(),
+        },
+        token
+      );
       alert("Request sent!");
-      setMessage(""); setPreferredTime("");
-    } catch (e) { setErr(e.message || "Failed to request"); }
-    finally { setBusy(false); }
+      setMsg(tutorId, "");
+      setTime(tutorId, "");
+    } catch (e) {
+      setErr(e.message || "Failed to request");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <div className="container">
       <h2>Find a Tutor</h2>
+
       <div className="grid grid--3 mt">
         <div className="card">
-          <div className="card__head"><h3>Search</h3></div>
+          <div className="card__head"><h3>Search by name</h3></div>
           <div className="card__body">
             <label className="stack">
-              <span className="muted">Keyword</span>
-              <input className="input" value={q} onChange={e=>setQ(e.target.value)} placeholder="name or bio..." />
+              <span className="muted">First/Last name</span>
+              <input
+                className="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Grace Hopper"
+                onKeyDown={(e) => e.key === "Enter" && load()}
+              />
             </label>
-            <label className="stack">
-              <span className="muted">Subject</span>
-              <input className="input" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="e.g., Algebra" />
-            </label>
-            <button className="btn btn--primary mt" disabled={busy} onClick={load}>Search</button>
+            <div className="mt" style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn--primary" disabled={busy} onClick={load}>
+                {busy ? "Searching…" : "Search"}
+              </button>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  setName("");
+                  load();
+                }}
+              >
+                Show All
+              </button>
+            </div>
             {err && <div className="error mt">{err}</div>}
           </div>
         </div>
@@ -57,21 +99,47 @@ export default function StudentConnectTutors() {
         <div className="card col-span-2">
           <div className="card__head"><h3>Results</h3></div>
           <div className="card__body">
-            {!items.length && <div className="muted">No tutors yet.</div>}
+            {!items.length && <div className="muted">No tutors found.</div>}
             <ul className="list">
-              {items.map(t => (
+              {items.map((t) => (
                 <li key={t.id} className="list__row">
                   <div>
-                    <div className="bold">{t.name} <span className="muted">({t.email})</span></div>
-                    <div className="muted">Subjects: {t.subjects?.join(", ") || "—"}</div>
-                    <div className="muted">Rate: ${t.hourly_rate ?? 0}/hr • Rating: {t.rating ?? 0}</div>
-                    <div className="muted">Availability: {t.availability?.join(", ") || "—"}</div>
+                    <div className="bold">
+                      {t.first_name} {t.last_name}{" "}
+                      <span className="muted">({t.email})</span>
+                    </div>
+                    <div className="muted">
+                      Subjects: {Array.isArray(t.subjects) && t.subjects.length ? t.subjects.join(", ") : "—"}
+                    </div>
+                    <div className="muted">
+                      Rate: ${t.hourly_rate ?? 0}/hr • Rating: {t.rating ?? 0}
+                    </div>
+                    <div className="muted">
+                      Availability: {Array.isArray(t.availability) && t.availability.length ? t.availability.join(", ") : "—"}
+                    </div>
                     <p>{t.bio}</p>
                   </div>
+
                   <div className="stack" style={{ minWidth: 260 }}>
-                    <input className="input" placeholder="Message to tutor..." value={message} onChange={e=>setMessage(e.target.value)} />
-                    <input className="input" placeholder="Preferred time (e.g., 2025-10-28 14:00)" value={preferredTime} onChange={e=>setPreferredTime(e.target.value)} />
-                    <button className="btn btn--primary" disabled={busy} onClick={()=>handleRequest(t.id)}>Request session</button>
+                    <input
+                      className="input"
+                      placeholder="Message to tutor…"
+                      value={msgById[t.id] || ""}
+                      onChange={(e) => setMsg(t.id, e.target.value)}
+                    />
+                    <input
+                      className="input"
+                      placeholder="Preferred time (e.g., 2025-10-28 14:00)"
+                      value={timeById[t.id] || ""}
+                      onChange={(e) => setTime(t.id, e.target.value)}
+                    />
+                    <button
+                      className="btn btn--primary"
+                      disabled={busy}
+                      onClick={() => handleRequest(t.id)}
+                    >
+                      Request session
+                    </button>
                   </div>
                 </li>
               ))}

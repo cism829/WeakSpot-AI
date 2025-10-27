@@ -9,7 +9,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.tutor import Tutor
 from app.models.connection_request import ConnectionRequest
-from app.schemas.tutor import TutorOut, TutorCreate, TutorSearchOut
+from app.schemas.tutor import TutorOut, TutorCreate, TutorSearchOut, TutorUpsert
 from app.schemas.connection import ConnectionCreate, ConnectionOut
 
 router = APIRouter(prefix="/tutors", tags=["tutors"])
@@ -21,8 +21,9 @@ def _j(s: str | None, default):
         return default
 
 # -------- Serializers --------
-def serialize_tutor_row(t: Tutor, u: User) -> TutorOut:
+def serialize_tutor_row(t: Tutor) -> TutorOut:
     """Serialize when a Tutor row exists."""
+    u = t.user; 
     if not u:
         raise HTTPException(status_code=500, detail="Tutor row missing linked user")
     return TutorOut(
@@ -111,26 +112,24 @@ def get_tutor(user_id: str, db: Session = Depends(get_db)):
 
 @router.post("", response_model=TutorOut)
 def create_or_update_my_tutor_profile(
-    tutor_in: TutorCreate,
+    tutor_in: TutorUpsert,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Upserts the calling user's Tutor profile. Name/email come from User.
-    """
-    t = db.query(Tutor).filter(Tutor.user_id == current_user.id).first()
-    data = {
-        "bio": tutor_in.bio or "",
+    owner_id = tutor_in.user_id or current_user.id
+    t = db.query(Tutor).filter(Tutor.user_id == owner_id).first()
+    payload = {
+        "bio": (tutor_in.bio or "").strip(),
         "subjects": json.dumps(tutor_in.subjects or []),
-        "hourly_rate": tutor_in.hourly_rate or 0.0,
-        "rating": tutor_in.rating or 0.0,
+        "hourly_rate": float(tutor_in.hourly_rate or 0.0),
+        "rating": float(tutor_in.rating or 0.0),
         "availability": json.dumps(tutor_in.availability or []),
     }
     if t:
-        for k, v in data.items():
+        for k, v in payload.items():
             setattr(t, k, v)
     else:
-        t = Tutor(user_id=current_user.id, **data)
+        t = Tutor(user_id=owner_id, **payload)
         db.add(t)
     db.commit()
     db.refresh(t)

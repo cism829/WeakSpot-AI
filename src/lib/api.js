@@ -152,16 +152,66 @@ export const listMyNotes = (token) => req('/notes/', { token });
 
 // ---- Tutors & Professors ----
 export const searchTutors = (params = {}, token) => {
-  const usp = new URLSearchParams(params).toString();
+  const {
+    name,
+    q,
+    page = 1,
+    pageSize,
+    page_size,
+  } = params;
+
+  const effectiveQ = (name ?? q ?? "").toString().trim();
+  const finalParams = {};
+
+  if (effectiveQ) {
+    finalParams.q = effectiveQ;
+    finalParams.name = effectiveQ; // harmless if backend ignores it
+  }
+
+  finalParams.page = page;
+  const ps = pageSize ?? page_size;
+  if (ps) finalParams.page_size = ps;
+
+  const usp = new URLSearchParams(finalParams).toString();
   return req(`/tutors${usp ? `?${usp}` : ""}`, { token });
 };
 export const getTutor = (id, token) => req(`/tutors/${id}`, { token });
 export const requestTutor = (id, payload, token) =>
   req(`/tutors/${id}/request`, { method: "POST", body: payload, token });
+export const upsertTutor = (payload, token) =>
+  req(`/tutors`, { method: "POST", body: payload, token });
+export const searchProfessors = async (params = {}, token) => {
+  const {
+    name,    // preferred (UI)
+    q,       // backward-compat
+    page,
+    pageSize,
+    page_size,
+    dept,    // optional
+  } = params;
 
-export const searchProfessors = (params = {}, token) => {
-  const usp = new URLSearchParams(params).toString();
-  return req(`/professors${usp ? `?${usp}` : ""}`, { token });
+  const effectiveQ = (name ?? q ?? "").toString().trim();
+  const finalParams = {};
+  if (effectiveQ) finalParams.q = effectiveQ;
+  if (dept) finalParams.dept = dept;
+
+  const ps = pageSize ?? page_size;
+  if (page != null) finalParams.page = page;
+  if (ps != null) finalParams.page_size = ps;
+
+  const qs = new URLSearchParams(finalParams).toString();
+
+  // Try GET /professors first
+  try {
+    return await req(`/professors${qs ? `?${qs}` : ""}`, { token });
+  } catch (e) {
+    // Fallback to POST /professors/search (same params in body)
+    return await req(`/professors/search`, {
+      method: "POST",
+      body: finalParams,
+      token,
+    });
+  }
 };
 export const getProfessor = (id, token) => req(`/professors/${id}`, { token });
 export const requestProfessor = (id, payload, token) =>
