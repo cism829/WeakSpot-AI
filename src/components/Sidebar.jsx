@@ -2,11 +2,11 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/Authcontext";
 
 function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
 
   if (!isLoggedIn) return null;
 
-  const links = [
+  const StudentLinks = [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/notes", label: "Notes" },
     { to: "/flashcards", label: "Flashcards" },
@@ -14,13 +14,37 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/studygroups", label: "Study Groups" },
     { to: "/notes-analysis", label: "Notes Analysis" },
-    { to: "/generate-quiz",  label: "Generate Quiz" },
-    { to: "/quiz",        label: "My Quizzes" },
+    { to: "/quiz", label: "Quiz" },
     { to: "/exam", label: "Exam" },
     { to: "/quiz-feedback", label: "Quiz Feedback" },
     { to: "/profile", label: "Profile" },
     { to: "/security", label: "Security Settings" },
   ];
+
+  const ProfessorLinks = [
+    { to: "/professor/dashboard", label: "Dashboard" },
+    { to: "/professor/classes", label: "My Classes" },
+    { to: "/professor/materials", label: "Materials" },
+    { to: "/professor/students", label: "Students" },
+    { to: "/professor/announcements", label: "Announcements" },
+    { to: "/professor/profile", label: "Profile" },
+  ];
+
+  const TutorLinks = [
+    { to: "/tutor/dashboard", label: "Dashboard" },
+    { to: "/tutor/students", label: "My Students" },
+    { to: "/tutor/schedule", label: "Schedule" },
+    { to: "/tutor/messages", label: "Messages" },
+    { to: "/tutor/resources", label: "Resources" },
+    { to: "/tutor/profile", label: "Profile" },
+  ];
+
+  const links =
+    user?.role === "professor"
+      ? ProfessorLinks
+      : user?.role === "tutor"
+        ? TutorLinks
+        : StudentLinks;
 
   return (
     <aside className={`sidebar ${isOpen ? "is-open" : ""} ${collapsed ? "is-collapsed" : ""}`}>
