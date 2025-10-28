@@ -54,68 +54,86 @@ def _build_system():
         "Return ONLY valid JSON. Do NOT include extra text, code fences, or explanations."
     )
 
-def _build_user_prompt(subject: str, topic: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
+
+def _build_user_prompt_general(subject: str, topic: str, grade_level: str, difficulty: str, n: int, item_types: List[str]) -> str:
+    """
+    General prompt, no note context. Uses subject/topic.
+    """
     type_desc = {
-        "mcq": (
-            '{ "type":"mcq", "question":"...", "choices":["A","B","C","D"], '
-            '"answer_index": 0, "explanation":"..." }'
-        ),
-        "short_answer": (
-            '{ "type":"short_answer", "question":"...", '
-            '"answer_text":"concise expected answer", "explanation":"..." }'
-        ),
-        "fill_blank": (
-            '{ "type":"fill_blank", "question":"Use __ to complete the sentence", '
-            '"answer_text":"word or phrase", "explanation":"..." }'
-        ),
-        "true_false": (
-            '{ "type":"true_false", "question":"...", '
-            '"answer_text":"True" | "False", "explanation":"..." }'
-        ),
+        "mcq": ('{ "type":"mcq", "question":"...", "choices":["A","B","C","D"], "answer_index": 0, "explanation":"..." }'),
+        "short_answer": ('{ "type":"short_answer", "question":"...", "answer_text":"concise expected answer", "explanation":"..." }'),
+        "fill_blank": ('{ "type":"fill_blank", "question":"Use __ to complete the sentence", "answer_text":"word or phrase", "explanation":"..." }'),
+        "true_false": ('{ "type":"true_false", "question":"...", "answer_text":"True" | "False", "explanation":"..." }'),
     }
     allowed_join = ", ".join(type_desc[t] for t in item_types if t in type_desc)
-    note_clause = f"\nContext (from student notes):\n{note_text}\n" if note_text else ""
     types_list = ", ".join(item_types)
     schema_hint = (
-        "{{\n"
+        "{\n"
         '  "items": [\n'
-        "    {{ \"one_of\": [\n"
+        "    { \"one_of\": [\n"
         f"      {allowed_join}\n"
-        "    ]}}\n"
+        "    ]}\n"
         "  ]\n"
-        "}}\n"
+        "}\n"
     )
     return (
         f"You are generating a quiz for grade level: {grade_level}.\n"
         f"SUBJECT: {subject}\n"
         f"TOPIC: {topic}\n"
         f"Create {n} questions in {subject} (topic: {topic}) at {difficulty} level across these item types: {types_list}.\n"
-        f"{note_clause}"
         "Return STRICT JSON matching this schema:\n"
         f"{schema_hint}\n"
         "Rules:\n"
-        "- Questions must be solvable without external info beyond common \n"
         "- Answer must be correct, precise, and unambiguous.\n"
-        "- Use age-appropriate language and math/content standards for {grade_level}.\n"
         f"- Use age-appropriate language and standards for {grade_level}.\n"
-        f"- Ensure items align with the stated TOPIC above.\n"
         "- MCQ must use exactly 4 distinct choices.\n"
         '- True/False must use exactly \"True\" or \"False\" in answer_text.\n'
         "- Keep explanations brief (1–2 sentences), precise, and tied to the question.\n"
-        "- Ensure all text is clear and unambiguous.\n"
-        "- Ensure answers are correct and matched the question and the explanation.\n"
         "\n"
         "INTERNAL CONSISTENCY CHECK (do not output this section—just enforce it):\n"
-        "- For MCQ: answer_index must be an integer in [0..3] and answer_text must EXACTLY\n"
-        "  equal choices[answer_index]. Explanation must justify why that choice is correct\n"
-        "  and, where relevant, why others are not.\n"
-        "- For True/False: answer_text must be exactly \"True\" or \"False\" and the explanation\n"
-        "  must justify that truth value with a fact directly implied by the question/context.\n"
-        "- For Short Answer/Fill-in: answer_text must directly answer the question; explanation\n"
-        "  must be consistent with that answer and not introduce contradictory facts.\n"
-        "- If any item fails these checks, regenerate that item before returning your final JSON.\n"
+        "- MCQ: answer_index in [0..3] and choices[answer_index] is the correct one; explanation justifies it.\n"
+        "- T/F: answer_text exactly \"True\" or \"False\" and explanation justifies that truth value.\n"
+        "- SA/Fill: answer_text directly answers the question; explanation matches.\n"
     )
 
+def _build_user_prompt_from_note(note_text: str, grade_level: str, difficulty: str, n: int, item_types: List[str]) -> str:
+    """
+    Note-only prompt. Ignores subject/topic; questions MUST be grounded ONLY in the note text.
+    """
+    type_desc = {
+        "mcq": ('{ "type":"mcq", "question":"...", "choices":["A","B","C","D"], "answer_index": 0, "explanation":"..." }'),
+        "short_answer": ('{ "type":"short_answer", "question":"...", "answer_text":"concise expected answer", "explanation":"..." }'),
+        "fill_blank": ('{ "type":"fill_blank", "question":"Use __ to complete the sentence", "answer_text":"word or phrase", "explanation":"..." }'),
+        "true_false": ('{ "type":"true_false", "question":"...", "answer_text":"True" | "False", "explanation":"..." }'),
+    }
+    allowed_join = ", ".join(type_desc[t] for t in item_types if t in type_desc)
+    types_list = ", ".join(item_types)
+    schema_hint = (
+        "{\n"
+        '  "items": [\n'
+        "    { \"one_of\": [\n"
+        f"      {allowed_join}\n"
+        "    ]}\n"
+        "  ]\n"
+        "}\n"
+    )
+    return (
+        f"NOTE_CONTENT (the ONLY allowed source of facts):\n{note_text}\n\n"
+        f"Create {n} questions at {difficulty} level for grade {grade_level} using ONLY information explicitly contained in NOTE_CONTENT.\n"
+        f"Item types: {types_list}.\n"
+        "If a detail is not supported by NOTE_CONTENT, do not invent it—discard and regenerate.\n"
+        "Return STRICT JSON matching this schema:\n"
+        f"{schema_hint}\n"
+        "Rules:\n"
+        "- All facts must be directly grounded in NOTE_CONTENT (no outside knowledge).\n"
+        "- Wording must be clear and age-appropriate for the grade.\n"
+        "- MCQ must use exactly 4 distinct choices.\n"
+        '- True/False must use exactly \"True\" or \"False\" in answer_text.\n'
+        "- Keep explanations brief and tied to NOTE_CONTENT.\n"
+        "\n"
+        "INTERNAL CONSISTENCY CHECK (do not output this section—just enforce it):\n"
+        "- Same checks as general, plus: each explanation must reference a fact present in NOTE_CONTENT.\n"
+    )
 def _coerce_item(it: dict) -> dict | None:
     t = (it.get("type") or "").lower().replace("-", "_")
     if t in {"multiple_choice", "multiplechoice", "mc"}:
@@ -197,7 +215,6 @@ def _gemini_generate(subject: str, topic: str, grade_level: str, difficulty: str
     _assert_gemini()
     api_key = getattr(settings, "GEMINI_API_KEY", None) or os.getenv("GOOGLE_API_KEY")
     model_name = getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
-
     client = genai.Client(api_key=api_key)
 
     try:
@@ -208,15 +225,28 @@ def _gemini_generate(subject: str, topic: str, grade_level: str, difficulty: str
             response_mime_type="application/json",
             response_schema=QuizItems,
         )
+        # ---- choose prompt by flow ----
+        if note_text:
+            user_prompt = _build_user_prompt_from_note(
+                note_text=note_text,
+                grade_level=grade_level,
+                difficulty=difficulty,
+                n=n,
+                item_types=item_types,
+            )
+        else:
+            user_prompt = _build_user_prompt_general(
+                subject=subject,
+                topic=topic,
+                grade_level=grade_level,
+                difficulty=difficulty,
+                n=n,
+                item_types=item_types,
+            )
 
-        user_prompt = _build_user_prompt(subject, topic, grade_level, difficulty, n, item_types, note_text)
+        resp = client.models.generate_content(model=model_name, contents=user_prompt, config=cfg)
 
-        resp = client.models.generate_content(
-            model=model_name,
-            contents=user_prompt,
-            config=cfg,
-        )
-
+        # --- rest of function unchanged (parse/normalize items) ---
         data = getattr(resp, "parsed", None)
         if isinstance(data, BaseModel):
             data = data.model_dump()

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Card from "../components/Card";
 import { useAuth } from "../context/Authcontext";
 import {
@@ -6,11 +6,10 @@ import {
     flashcardsGenerateAIFromNote,
     listMyFlashcards,
     getFlashcard,
-    listMyNotes, // make sure this exists in ../lib/api (see section 2)
+    listMyNotes,
 } from "../lib/api";
 
 function errorDetail(e) {
-    // handle FastAPI HTTPException: { detail: "..." }
     if (!e) return "Unknown error";
     if (typeof e === "string") return e;
     if (e.detail) return e.detail;
@@ -18,38 +17,37 @@ function errorDetail(e) {
     try { return JSON.stringify(e).slice(0, 200); } catch { return "Request failed"; }
 }
 
+const noteLabel = (n) => {
+    const base =
+        n.filename || n.name || n.title ||
+        (n.preview_text ? n.preview_text.slice(0, 60) : `Note ${String(n.id).slice(0, 8)}`);
+    const date = n.created_at ? new Date(n.created_at).toLocaleString() : "";
+    return date ? `${base} — ${date}` : base;
+};
+
 export default function Flashcards() {
     const { user } = useAuth();
     const token = user?.token;
 
-    // topic
-    const [subject, setSubject] = useState("general");
-    const [topic, setTopic] = useState("");
-    const [count, setCount] = useState(10);
-    const [busyTopic, setBusyTopic] = useState(false);
+    // ---- General flow state ----
+    const [subjectA, setSubjectA] = useState("general");
+    const [topicA, setTopicA] = useState("");
+    const [countA, setCountA] = useState(10);
+    const [busyA, setBusyA] = useState(false);
 
-    // notes
+    // ---- Note flow state (independent) ----
     const [notes, setNotes] = useState([]);
-    const [noteQuery, setNoteQuery] = useState("");
-    const [noteSubject, setNoteSubject] = useState("General");
-    const [noteTopic, setNoteTopic] = useState("");
-    const [noteCount, setNoteCount] = useState(10);
-    const [busyNote, setBusyNote] = useState(false);
+    const [selectedNoteId, setSelectedNoteId] = useState("");
+    const [countB, setCountB] = useState(10);
+    const [busyB, setBusyB] = useState(false);
 
     // sets
     const [sets, setSets] = useState([]);
     const [loadingSets, setLoadingSets] = useState(false);
-
-    // active set
     const [activeId, setActiveId] = useState(null);
     const [active, setActive] = useState(null);
     const [loadingActive, setLoadingActive] = useState(false);
 
-    // study
-    const [idx, setIdx] = useState(0);
-    const [flipped, setFlipped] = useState(false);
-
-    // UX
     const [err, setErr] = useState("");
 
     // load sets
@@ -63,7 +61,6 @@ export default function Flashcards() {
                 if (!cancel) setSets(rows || []);
             } catch (e) {
                 if (!cancel) setErr(`Failed to load flashcards: ${errorDetail(e)}`);
-                console.error(e);
             } finally {
                 if (!cancel) setLoadingSets(false);
             }
@@ -71,17 +68,14 @@ export default function Flashcards() {
         return () => { cancel = true; };
     }, [token]);
 
-    // load notes
+    // load notes (once)
     useEffect(() => {
         let cancel = false;
         (async () => {
             try {
-                const res = await listMyNotes(token); // expects [{id, filename, ...}]
+                const res = await listMyNotes(token);
                 if (!cancel && Array.isArray(res)) setNotes(res);
-            } catch (e) {
-                // optional—don't error the page if notes API is missing
-                console.warn("Notes list failed (optional):", e);
-            }
+            } catch (e) { /* optional */ }
         })();
         return () => { cancel = true; };
     }, [token]);
@@ -97,12 +91,10 @@ export default function Flashcards() {
                 const fc = await getFlashcard(activeId, token);
                 if (!cancel) {
                     setActive(fc);
-                    setIdx(0);
-                    setFlipped(false);
+                    setBusyA(false); setBusyB(false);
                 }
             } catch (e) {
                 if (!cancel) setErr(`Failed to load selected set: ${errorDetail(e)}`);
-                console.error(e);
             } finally {
                 if (!cancel) setLoadingActive(false);
             }
@@ -110,155 +102,99 @@ export default function Flashcards() {
         return () => { cancel = true; };
     }, [activeId, token]);
 
-    // generate from topic
-    const onGenerateTopic = async () => {
-        if (!topic.trim()) return setErr("Please enter a topic.");
-        if (!subject.trim()) return setErr("Please enter a subject.");
-        if (count < 5 || count > 50) return setErr("Number of cards must be between 5 and 50.");
-        setBusyTopic(true);
-        setErr("");
+    // generate (general)
+    const onGenerateGeneral = async () => {
+        if (!topicA.trim()) return setErr("Enter a topic for general flashcards.");
+        if (!subjectA.trim()) return setErr("Enter a subject for general flashcards.");
+        if (countA < 5 || countA > 50) return setErr("Number of cards must be 5–50.");
+        setBusyA(true); setErr("");
         try {
             const created = await flashcardsGenerateAI(
-                { subject: subject.trim() , topic: topic.trim(), num_items: count, title: `${topic.trim()} — flashcards` },
+                { subject: subjectA.trim(), topic: topicA.trim(), num_items: countA, title: `${topicA.trim()} — flashcards` },
                 token
             );
-            // add to top and open
-            setSets((prev) => [{
-                id: created.id, title: created.title, subject: created.subject, source: created.source,
-                created_at: new Date().toISOString(),
-            }, ...prev]);
+            setSets((prev) => [{ id: created.id, title: created.title, subject: created.subject, source: created.source, created_at: new Date().toISOString() }, ...prev]);
             setActiveId(created.id);
         } catch (e) {
-            console.error(e);
             setErr(`Generation failed: ${errorDetail(e)}`);
         } finally {
-            setBusyTopic(false);
+            setBusyA(false);
         }
     };
 
-    // generate from note
+    // generate (note-only)
     const onGenerateFromNote = async () => {
-        if (!noteQuery.trim()) return setErr("Pick a note filename.");
-        if (noteCount < 5 || noteCount > 50) return setErr("Number of cards must be between 5 and 50.");
-
-        const match = notes.find(
-            (n) => String(n.filename || "").toLowerCase() === noteQuery.trim().toLowerCase()
-        );
-        if (!match) return setErr("No note matches that filename.");
-
-        setBusyNote(true);
-        setErr("");
+        if (!selectedNoteId) return setErr("Select a note first.");
+        if (countB < 5 || countB > 50) return setErr("Number of cards must be 5–50.");
+        setBusyB(true); setErr("");
         try {
+            const sel = notes.find(n => String(n.id) === String(selectedNoteId));
+            const display = sel?.filename || sel?.name || sel?.title || (sel?.preview_text ? sel.preview_text.slice(0, 40) : `Note ${String(sel?.id).slice(0, 8)}`);
+            // subject/topic are ignored by backend for note flow; we still send for schema compat.
             const payload = {
-                note_id: match.id,
-                subject: noteSubject.trim() || "General",
-                topic: noteTopic.trim() || match.filename,
-                num_items: noteCount,
-                title: `Flashcards from ${match.filename}`,
+                note_id: sel.id,
+                subject: "",              // ignored
+                topic: "",                // ignored
+                num_items: countB,
+                title: `Flashcards from ${display}`,
             };
             const created = await flashcardsGenerateAIFromNote(payload, token);
-            setSets((prev) => [{
-                id: created.id, title: created.title, subject: created.subject, source: created.source,
-                created_at: new Date().toISOString(),
-            }, ...prev]);
+            setSets((prev) => [{ id: created.id, title: created.title, subject: created.subject, source: created.source, created_at: new Date().toISOString() }, ...prev]);
             setActiveId(created.id);
         } catch (e) {
-            console.error(e);
             setErr(`Generation from note failed: ${errorDetail(e)}`);
         } finally {
-            setBusyNote(false);
+            setBusyB(false);
         }
     };
 
-    // keyboard shortcuts
-    useEffect(() => {
-        const onKey = (e) => {
-            if (!active?.items?.length) return;
-            if (e.code === "Space") { e.preventDefault(); setFlipped((f) => !f); }
-            else if (e.code === "ArrowRight") { e.preventDefault(); setFlipped(false); setIdx((i) => Math.min(i + 1, active.items.length - 1)); }
-            else if (e.code === "ArrowLeft") { e.preventDefault(); setFlipped(false); setIdx((i) => Math.max(i - 1, 0)); }
-        };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [active]);
-
     const total = active?.items?.length || 0;
-    const current = total ? active.items[idx] : null;
-    const notesAvailable = Array.isArray(notes) && notes.length > 0;
+    const current = total ? active.items[0] : null; // simple viewer below
 
     return (
         <div className="container">
-            <h2>🧠 Flashcards & Topic Quizzes</h2>
-
+            <h2>🧠 Flashcards</h2>
             {err && <div className="alert alert--error" style={{ marginBottom: 12 }}>{err}</div>}
 
-            <div className="grid grid--2">
-                {/* Topic-based */}
-                <Card title="Generate flashcards" tone="blue">
+            <div className="grid grid--2" style={{ gap: 16 }}>
+                <Card title="From Topic" subtitle="General prompt (no notes)" tone="blue">
                     <label className="field">
                         <span>Subject</span>
-                        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g., Biology, ELA, Math" />
+                        <input value={subjectA} onChange={(e) => setSubjectA(e.target.value)} placeholder="e.g., Biology, ELA, Math" />
                     </label>
                     <label className="field">
                         <span>Topic</span>
-                        <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Photosynthesis" />
+                        <input value={topicA} onChange={(e) => setTopicA(e.target.value)} placeholder="e.g., Photosynthesis" />
                     </label>
                     <label className="field">
-                        <span>Number of cards</span>
-                        <input type="number" min="5" max="50" value={count} onChange={(e) => setCount(+e.target.value)} />
+                        <span># of Cards</span>
+                        <input type="number" min="1" max="50" value={countA} onChange={(e) => setCountA(+e.target.value)} />
                     </label>
-                    <button className="btn btn--primary" onClick={onGenerateTopic} disabled={busyTopic}>
-                        {busyTopic ? "Generating…" : "Generate Flashcards"}
+                    <button className="btn btn--primary" onClick={onGenerateGeneral} disabled={busyA}>
+                        {busyA ? "Generating…" : "Generate (General)"}
                     </button>
-                    <p className="muted" style={{ marginTop: 8 }}>
-                        Tip: Keep topics concise. Examples: “Cell organelles”, “Newton’s 3 Laws”.
-                    </p>
                 </Card>
 
-                {/* Note-based */}
-                <Card title="Generate from my note" tone="green" subtitle={notesAvailable ? "Pick a note by filename" : "Notes not found"}>
-                    {notesAvailable ? (
-                        <>
-                            <label className="field">
-                                <span>Note filename</span>
-                                <input
-                                    list="note-filenames"
-                                    placeholder="Start typing to search…"
-                                    value={noteQuery}
-                                    onChange={(e) => setNoteQuery(e.target.value)}
-                                />
-                                <datalist id="note-filenames">
-                                    {notes.map((n) => <option key={n.id} value={n.filename} />)}
-                                </datalist>
-                                <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                                    We’ll use the filename you select and send its ID under the hood.
-                                </div>
-                            </label>
-                            <label className="field">
-                                <span>Subject</span>
-                                <input value={noteSubject} onChange={(e) => setNoteSubject(e.target.value)} placeholder="e.g., Biology / ELA / Math" />
-                            </label>
-                            <label className="field">
-                                <span>Topic</span>
-                                <input value={noteTopic} onChange={(e) => setNoteTopic(e.target.value)} placeholder="e.g., Unit 2 — Forces" />
-                            </label>
-                            <label className="field">
-                                <span>Number of cards</span>
-                                <input type="number" min="5" max="50" value={noteCount} onChange={(e) => setNoteCount(+e.target.value)} />
-                            </label>
-                            <button className="btn btn--primary" onClick={onGenerateFromNote} disabled={busyNote}>
-                                {busyNote ? "Generating…" : "Generate From Note"}
-                            </button>
-                        </>
-                    ) : (
-                        <div className="muted">Add notes first, then come back.</div>
-                    )}
+                <Card title="From Note" subtitle="Note-only prompt (ignores outside knowledge)" tone="green">
+                    <label className="field">
+                        <span>My notes</span>
+                        <select className="input" value={selectedNoteId} onChange={(e) => setSelectedNoteId(e.target.value)}>
+                            <option value="">-- Select a note --</option>
+                            {notes.map((n) => <option key={String(n.id)} value={String(n.id)}>{noteLabel(n)}</option>)}
+                        </select>
+                    </label>
+                    <label className="field">
+                        <span># of Cards</span>
+                        <input type="number" min="1" max="50" value={countB} onChange={(e) => setCountB(+e.target.value)} />
+                    </label>
+                    <button className="btn btn--primary" onClick={onGenerateFromNote} disabled={busyB}>
+                        {busyB ? "Generating…" : "Generate (From Note)"}
+                    </button>
                 </Card>
             </div>
 
-            {/* Sets list */}
             <div style={{ marginTop: 16 }}>
-                <Card title="My flashcard sets" tone="purple" subtitle={loadingSets ? "Loading…" : "Click a set to study"}>
+                <Card title="My flashcard sets" tone="purple" subtitle={loadingSets ? "Loading…" : "Click a set to view first card"}>
                     {loadingSets ? (
                         <div className="muted">Loading your sets…</div>
                     ) : sets.length === 0 ? (
@@ -280,61 +216,20 @@ export default function Flashcards() {
                 </Card>
             </div>
 
-            {/* Study viewer */}
             {activeId && (
                 <div style={{ marginTop: 16 }}>
-                    <Card
-                        title={active?.title || "Flashcards"}
-                        tone="teal"
-                        subtitle={loadingActive ? "Loading…" : total ? `Card ${idx + 1} of ${total}` : "No cards"}
-                    >
+                    <Card title={active?.title || "Flashcards"} tone="teal" subtitle={total ? `First of ${total} cards` : "No cards"}>
                         {loadingActive ? (
-                            <div className="muted">Loading cards…</div>
-                        ) : total === 0 ? (
-                            <div className="muted">This set has no cards.</div>
-                        ) : (
-                            <>
-                                <div
-                                    className={`flashcard ${flipped ? "is-flipped" : ""}`}
-                                    onClick={() => setFlipped((f) => !f)}
-                                    style={{
-                                        cursor: "pointer",
-                                        minHeight: 160,
-                                        border: "1px solid var(--border)",
-                                        borderRadius: 12,
-                                        padding: 16,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        textAlign: "center",
-                                        transition: "transform 0.2s ease",
-                                    }}
-                                >
-                                    <div>
-                                        {!flipped ? (
-                                            <>
-                                                <div className="muted" style={{ marginBottom: 6 }}>Front</div>
-                                                <div>{current.front}</div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="muted" style={{ marginBottom: 6 }}>Back</div>
-                                                <div style={{ whiteSpace: "pre-wrap" }}>{current.back}</div>
-                                                {current.hint && <div className="muted" style={{ marginTop: 8 }}>Hint: {current.hint}</div>}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-                                    <div className="muted">Click card or press Space to flip</div>
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                        <button className="btn" onClick={() => { setFlipped(false); setIdx((i) => Math.max(i - 1, 0)); }} disabled={idx === 0}>◀ Prev</button>
-                                        <button className="btn" onClick={() => { setFlipped(false); setIdx((i) => Math.min(i + 1, total - 1)); }} disabled={idx >= total - 1}>Next ▶</button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                            <div className="muted">Loading…</div>
+                        ) : total ? (
+                            <div>
+                                <div className="muted" style={{ marginBottom: 6 }}>Front</div>
+                                <div style={{ marginBottom: 10 }}>{current.front}</div>
+                                <div className="muted" style={{ marginBottom: 6 }}>Back</div>
+                                <div style={{ whiteSpace: "pre-wrap" }}>{current.back}</div>
+                                {current.hint && <div className="muted" style={{ marginTop: 8 }}>Hint: {current.hint}</div>}
+                            </div>
+                        ) : <div className="muted">This set has no cards.</div>}
                     </Card>
                 </div>
             )}

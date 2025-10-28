@@ -18,3 +18,7 @@ class Note(Base):
         "Flashcard",
         back_populates="note"
     )
+    chunks = relationship("NoteChunk", back_populates="note")
+    analyses = relationship("NoteAnalysis", back_populates="note")
+    repairs = relationship("NoteRepair", back_populates="note")
+    

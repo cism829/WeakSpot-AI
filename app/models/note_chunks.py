@@ -2,10 +2,8 @@ from sqlalchemy import Column,Integer,Text,DateTime,ForeignKey,UniqueConstraint,
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import UUID
-from pgvector.sqlalchemy import VECTOR
-from app.core.db import Base
-
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from app.models.base import Base
 
 class NoteChunk(Base):
     __tablename__ = "note_chunks"
@@ -26,7 +24,7 @@ class NoteChunk(Base):
 
     chunk_index = Column(Integer, nullable=False)
     text = Column(Text, nullable=False)
-    embedding = Column(VECTOR(1536), nullable=True)
+    embedding = Column(JSONB, nullable=True)  # store list[float]
 
     created_at = Column(
         DateTime(timezone=True),
@@ -40,3 +38,4 @@ class NoteChunk(Base):
         UniqueConstraint("note_id", "chunk_index", name="note_chunks_note_idx"),
         Index("note_chunks_note_id_idx", "note_id"),
     )
+

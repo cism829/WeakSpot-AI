@@ -12,5 +12,11 @@ from .chat import Rooms, Messages, File, RoomInfo
 from .tutor import Tutor
 from .professor import Professor
 from .connection_request import ConnectionRequest
+from .note_analysis import NoteAnalysis
+from .note_repair import NoteRepair
+from .note_chunks import NoteChunk
+
 __all__ = ["Base", "User", "Note", "Quiz", "QuizItem", "Result", "ExamStart", "ResultAnswer", 
-        "Flashcard", "FlashcardItem", "Rooms", "Messages", "File", "RoomInfo", "Tutor", "Professor", "ConnectionRequest"]
+        "Flashcard", "FlashcardItem", "Rooms", "Messages", "File", "RoomInfo", "Tutor", "Professor", "ConnectionRequest", 
+        "NoteAnalysis", "NoteRepair", "NoteChunk"
+        ]

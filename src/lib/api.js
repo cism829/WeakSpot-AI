@@ -188,8 +188,47 @@ export const deleteAccount = (confirm, token) =>
 // ------------------------------------------------------------
 // Notes
 // ------------------------------------------------------------
-export const listMyNotes = (token) => req("/notes/", { token });
+export const listMyNotes = (token) => req("/notes/mine", { token });
 
+export const getNote = (id, token) => req(`/notes/${id}`, { token });
+
+export const createNote = (og_text, token) =>
+  fetch(`${API_URL}/notes`, {
+    method: "POST",
+    headers: { Authorization: token ? `Bearer ${token}` : undefined },
+    body: (() => { const fd = new FormData(); fd.append("og_text", og_text); return fd; })(),
+    credentials: "include",
+  }).then(async (r) => {
+    const text = await r.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!r.ok) throw new Error(data?.detail || r.statusText || "Request failed");
+    return data;
+  });
+
+export const uploadNoteFile = (file, token) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return fetch(`${API_URL}/notes/upload`, {
+    method: "POST",
+    headers: { Authorization: token ? `Bearer ${token}` : undefined },
+    body: fd,
+    credentials: "include",
+  }).then(async (r) => {
+    const text = await r.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!r.ok) throw new Error(data?.detail || r.statusText || "Upload failed");
+    return data;
+  });
+};
+
+export const deleteNote = (id, token) => req(`/notes/${id}`, { method: "DELETE", token });
+
+export const analyzeNote = (id, token, subject) => {
+  const qs = subject ? `?subject=${encodeURIComponent(subject)}` : "";
+  return req(`/analysis/${id}${qs}`, { method: "POST", token });
+};
+
+export const getLatestAnalysis = (id, token) => req(`/analysis/${id}/latest`, { token });
 // ------------------------------------------------------------
 // Tutors & Professors
 // ------------------------------------------------------------
@@ -266,3 +305,4 @@ export const acceptConnection = (id, token) =>
 
 export const declineConnection = (id, token) =>
   req(`/connections/${id}/decline`, { method: "POST", token });
+

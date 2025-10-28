@@ -102,6 +102,7 @@ function App() {
                 <Route path="/chat" element={<Navigate to="/studygroups" replace />} />
                 <Route path="/createroom" element={<PrivateRoute><CreateRoom /></PrivateRoute>} />
                 <Route path="/notes-analysis" element={<PrivateRoute><NotesAnalysis /></PrivateRoute>} />
+                <Route path="/notes-analysis/:id" element={<PrivateRoute><NotesAnalysis /></PrivateRoute>} />
                 <Route path="/security" element={<PrivateRoute><SecuritySettings /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                 <Route path="/exam" element={<PrivateRoute><Exam /></PrivateRoute>} />

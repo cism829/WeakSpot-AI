@@ -34,7 +34,7 @@ router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
 # ---------- Prompt builder ----------
 
-def _build_flashcard_user_prompt(subject: str, topic: str, n: int, note_text: str | None = None) -> str:
+def _build_flashcard_prompt_general(subject: str, topic: str, n: int) -> str:
     schema_hint = (
         "{\n"
         '  "items": [\n'
@@ -42,30 +42,38 @@ def _build_flashcard_user_prompt(subject: str, topic: str, n: int, note_text: st
         "  ]\n"
         "}\n"
     )
-    note_clause = f"\nContext (from student notes):\n{note_text}\n" if note_text else ""
     return (
         f"Create exactly {n} study flashcards.\n"
         f"SUBJECT: {subject}\n"
         f"TOPIC: {topic}\n"
-        f"{note_clause}"
         "Return STRICT JSON matching this schema:\n"
         f"{schema_hint}\n"
         "Rules:\n"
         "- Keep language clear, concise, and student-friendly.\n"
         "- Each 'front' must be a single unambiguous term or question.\n"
         "- Each 'back' must directly and correctly answer the 'front'.\n"
-        "- 'hint' is optional and should be a short mnemonic or quick reminder.\n"
-        "- Do not include duplicate items or contradictory facts.\n"
-        "- If note context is given, use only facts supported by that context.\n"
-        "\n"
-        "STRICT OUTPUT REQUIREMENTS:\n"
-        "1) Produce ONLY valid JSON (no prose, no code fences, no comments).\n"
-        "2) Escape quotes properly and do not include trailing commas.\n"
-        "\n"
-        "INTERNAL CONSISTENCY CHECK (do not output this text — just enforce it):\n"
-        "- Every item must have non-empty 'front' and 'back'.\n"
-        "- 'back' must directly answer/define 'front'; 'hint' must not contradict 'back'.\n"
-        "- If any item fails, fix it before returning the final JSON.\n"
+        "- 'hint' is optional and short.\n"
+        "STRICT OUTPUT: JSON only (no prose, no code fences).\n"
+    )
+
+def _build_flashcard_prompt_from_note(n: int, note_text: str) -> str:
+    schema_hint = (
+        "{\n"
+        '  "items": [\n'
+        '    { "front":"term or question", "back":"concise, correct answer from NOTE_CONTENT", "hint":"optional mnemonic" }\n'
+        "  ]\n"
+        "}\n"
+    )
+    return (
+        f"NOTE_CONTENT (the ONLY allowed source of facts):\n{note_text}\n\n"
+        f"Create exactly {n} study flashcards using ONLY information explicitly contained in NOTE_CONTENT.\n"
+        "If an item is not supported by NOTE_CONTENT, discard it and regenerate.\n"
+        "Return STRICT JSON matching this schema:\n"
+        f"{schema_hint}\n"
+        "Rules:\n"
+        "- 'front' is a clear term/question; 'back' must be directly supported by NOTE_CONTENT.\n"
+        "- Keep all text concise and student-friendly; 'hint' is optional.\n"
+        "STRICT OUTPUT: JSON only (no prose, no code fences).\n"
     )
 
 # ---------- AI call ----------
@@ -89,13 +97,13 @@ def _gemini_generate_flashcards(subject: str, topic: str, n: int, note_text: str
             response_schema=FlashcardItems,
         )
 
-        user_prompt = _build_flashcard_user_prompt(subject, topic, n, note_text)
+        # ---- choose prompt by flow ----
+        if note_text:
+            user_prompt = _build_flashcard_prompt_from_note(n=n, note_text=note_text)
+        else:
+            user_prompt = _build_flashcard_prompt_general(subject=subject, topic=topic, n=n)
 
-        resp = client.models.generate_content(
-            model=model_name,
-            contents=user_prompt,
-            config=cfg,
-        )
+        resp = client.models.generate_content(model=model_name, contents=user_prompt, config=cfg)
 
         data = getattr(resp, "parsed", None)
         if isinstance(data, BaseModel):
@@ -105,17 +113,13 @@ def _gemini_generate_flashcards(subject: str, topic: str, n: int, note_text: str
 
         items = (data or {}).get("items") or []
         out: List[dict] = []
-
         for it in items[:n]:
             front = (it.get("front") or "").strip()
             back = (it.get("back") or "").strip()
             hint = (it.get("hint") or None)
             hint = (hint.strip() if isinstance(hint, str) and hint.strip() else None)
-
-            if not front or not back:
-                continue
-
-            out.append({"front": front, "back": back, "hint": hint})
+            if front and back:
+                out.append({"front": front, "back": back, "hint": hint})
 
         if not out:
             print("DEBUG raw model text:", (resp.text or "")[:1000])

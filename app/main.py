@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.db import engine, Base
 from app.api.auth import router as auth_router
-from app.models import Base, User, Note, Quiz, QuizItem, Result, ExamStart
+from app.models import Base, User, Note, Quiz, QuizItem, Result, ExamStart, ResultAnswer, Flashcard, FlashcardItem, Rooms, Messages, File, RoomInfo, Tutor, Professor, ConnectionRequest, NoteAnalysis, NoteRepair, NoteChunk
 from app.api.quizzes import router as quizzes_router 
 from app.api.leaderboard import router as leaderboard_router
 from app.api.exam import router as exam_router
@@ -20,6 +20,7 @@ from app.api.search import router as search_router
 from app.api.rooms import router as rooms_router
 from app.api.fileUpload import router as file_upload_router
 from app.api.groupchat import router as groupchat_router  
+from app.api.notes import router as notes_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Tutor - Backend", version="1.0.0")
@@ -55,3 +56,4 @@ app.include_router(search_router)
 app.include_router(rooms_router)
 app.include_router(file_upload_router)
 app.include_router(groupchat_router)
+app.include_router(notes_router)

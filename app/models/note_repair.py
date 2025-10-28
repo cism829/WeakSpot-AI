@@ -2,7 +2,7 @@ from sqlalchemy import Column, Text, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func, text
 from sqlalchemy.orm import relationship
-from app.core.db import Base
+from app.models.base import Base
 
 class NoteRepair(Base):
     __tablename__ = "note_repairs"
@@ -17,3 +17,5 @@ class NoteRepair(Base):
     status    = Column(String(16), nullable=False, server_default=text("'pending'"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    note = relationship("Note", back_populates="repairs")
