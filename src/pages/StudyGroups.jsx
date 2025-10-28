@@ -3,78 +3,132 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/Authcontext";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
 export default function StudyGroups() {
     const navigate = useNavigate();
     const { user } = useAuth();
 
-    // robust fallback in case your auth shape varies
     const clientId = user?.id ?? user?.userId ?? user?.user?.id ?? "";
 
-    const [rooms, setRooms] = useState([]);
+    const [rooms, setRooms] = useState([]);       // must stay an array
+    const [loading, setLoading] = useState(true);
+    const [err, setErr] = useState("");
     const [selectedRoom, setSelectedRoom] = useState(null);
 
     useEffect(() => {
-        fetch("http://localhost:8000/rooms")
-            .then((res) => res.json())
-            .then((data) => setRooms(data))
-            .catch((err) => console.error("Failed to fetch rooms:", err));
+        let ignore = false;
+        (async () => {
+            try {
+                const res = await fetch(`${API_URL}/rooms`, {
+                    headers: { Accept: "application/json" },
+                });
+
+                // Try to parse JSON (may fail if server returns HTML)
+                let data = null;
+                try { data = await res.json(); } catch { data = null; }
+
+                if (!res.ok) {
+                    // If the list route doesn’t exist yet, treat as "no rooms"
+                    if (res.status === 404) {
+                        if (!ignore) setRooms([]);
+                    } else {
+                        if (!ignore) {
+                            setErr((data && (data.detail || data.error)) || `Failed to load rooms (${res.status})`);
+                            setRooms([]); // keep render safe
+                        }
+                    }
+                    return;
+                }
+
+                // Normalize: accept either an array or { rooms: [...] }
+                const list = Array.isArray(data) ? data : (Array.isArray(data?.rooms) ? data.rooms : []);
+                if (!ignore) setRooms(list);
+            } catch (e) {
+                if (!ignore) {
+                    setErr(String(e?.message || e));
+                    setRooms([]); // safe fallback so .map never crashes
+                }
+            } finally {
+                if (!ignore) setLoading(false);
+            }
+        })();
+        return () => { ignore = true; };
     }, []);
 
     useEffect(() => {
-        if (selectedRoom) {
-            // route only needs room; Chat will read clientId from auth
-            navigate(`/chat/${selectedRoom}`);
-        }
+        if (selectedRoom) navigate(`/chat/${selectedRoom}`);
     }, [selectedRoom, navigate]);
 
     async function verifyAccess(roomId, userId, password) {
-        const formData = new FormData();
-        formData.append("user_id", userId);
-        formData.append("password", password);
-
-        const response = await fetch(`http://127.0.0.1:8000/rooms/${roomId}/verify`, {
-            method: "POST",
-            body: formData,
-        });
-        if (response.ok) return true;
-
-        const err = await response.json();
-        alert(err.detail || "Access denied");
+        const form = new FormData();
+        form.append("user_id", userId);
+        form.append("password", password);
+        const res = await fetch(`${API_URL}/rooms/${roomId}/verify`, { method: "POST", body: form });
+        if (res.ok) return true;
+        let err;
+        try { err = await res.json(); } catch { err = null; }
+        alert(err?.detail || "Access denied");
         return false;
     }
 
     const handleJoinRoom = async (room) => {
-        const accessRes = await fetch(
-            `http://127.0.0.1:8000/rooms/${room.room_id}/access?user_id=${encodeURIComponent(clientId)}`
+        if (!clientId) {
+            alert("Please sign in first.");
+            return;
+        }
+        const res = await fetch(
+            `${API_URL}/rooms/${room.room_id}/access?user_id=${encodeURIComponent(clientId)}`
         );
-        const accessData = await accessRes.json();
+        const data = await res.json();
 
-        if (accessData.is_private === "public") {
+        if (data.is_private === "public") {
             setSelectedRoom(room.room_id);
             return;
         }
-
-        if (accessData.is_private === "private" && !accessData.has_access) {
+        if (data.is_private === "private" && !data.has_access) {
             const password = prompt("Enter room password:");
-            const accessGranted = await verifyAccess(room.room_id, clientId, password);
-            if (!accessGranted) return;
+            if (!password) return;
+            const ok = await verifyAccess(room.room_id, clientId, password);
+            if (!ok) return;
         }
         setSelectedRoom(room.room_id);
     };
 
-    return (
-        <div className="container">
-            <h2>👥 Study Groups</h2>
-            <Link to={"/createroom"}>
-                <button>Create new room</button>
-            </Link>
+    // Render-safe alias (prevents "rooms.map is not a function")
+    const list = Array.isArray(rooms) ? rooms : [];
 
-            <div className="rooms">
-                {rooms.map((r) => (
-                    <div className="room-box" key={r.room_id}>
-                        <h2>{r.room_name}</h2>
-                        <p>{r.description}</p>
-                        <button onClick={() => handleJoinRoom(r)}>Join Room</button>
+    return (
+        <div className="container" style={{ maxWidth: 900, margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
+                <h2>👥 Study Groups</h2>
+                <Link to="/createroom"><button>Create new room</button></Link>
+            </div>
+
+            {loading && <p className="muted">Loading rooms…</p>}
+            {err && <p className="error">Error: {err}</p>}
+
+            {!loading && !err && list.length === 0 && (
+                <div className="empty">
+                    <p>No rooms yet.</p>
+                    <Link to="/createroom"><button>Create the first room</button></Link>
+                </div>
+            )}
+
+            <div className="rooms" style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 16, marginTop: 16
+            }}>
+                {list.map(r => (
+                    <div className="room-box" key={r.room_id} style={{ border: "1px solid #e6e6e6", borderRadius: 12, padding: 16 }}>
+                        <h3 style={{ margin: "0 0 6px" }}>{r.room_name}</h3>
+                        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{r.room_subject}</div>
+                        <p style={{ minHeight: 40 }}>{r.description}</p>
+                        <span className="badge">{r.is_private === "private" ? "Private" : "Public"}</span>
+                        <div style={{ marginTop: 12 }}>
+                            <button onClick={() => handleJoinRoom(r)}>Join Room</button>
+                        </div>
                     </div>
                 ))}
             </div>
