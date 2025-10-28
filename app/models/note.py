@@ -1,14 +1,13 @@
 
-from sqlalchemy import Column, Integer, ForeignKey, String, Text, DateTime, func
+from sqlalchemy import Column, text, Integer, ForeignKey, String, Text, DateTime, func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
-
+from sqlalchemy.dialects.postgresql import UUID
 class Note(Base):
     __tablename__ = "notes"
-    id = Column(Integer, primary_key=True, index=True)
+    note_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    filename = Column(String(255), nullable=False)
-    content_text = Column(Text, nullable=True)
+    og_text = Column(Text, nullable=True)
     status = Column(String(50), default="uploaded")  # uploaded -> ocr_done -> analyzed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

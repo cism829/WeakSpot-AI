@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text
-from typing import List, Dict, Any
+from sqlalchemy import func
+from typing import List, Dict, Any, Optional, Union
 import json
 import os
+from uuid import UUID
 
 from app.core.config import settings
 from app.core.db import get_db
@@ -14,7 +15,14 @@ from app.models.quiz_item import QuizItem
 from app.models.result import Result
 from app.models.result_answer import ResultAnswer
 from app.models.attempt import Attempt
-from app.schemas.quiz_gen import GenerateWithNote, GenerateWithoutNote, QuizOut, QuizItemOut, SubmitPayload, GradePayload
+from app.models.note import Note
+from app.schemas.quiz_gen import (
+    GenerateWithNote,
+    GenerateWithoutNote,
+    QuizOut,
+    QuizItemOut,
+    GradePayload,
+)
 from app.schemas.quiz import QuizItems  # Pydantic schema for structured output
 
 # ---- Gemini SDK ----
@@ -44,13 +52,9 @@ def _build_system():
         "Always return STRICT JSON that matches the provided schema. "
         "Do not include any explanations outside of JSON."
         "Return ONLY valid JSON. Do NOT include extra text, code fences, or explanations."
-
     )
 
 def _build_user_prompt(subject: str, topic: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None) -> str:
-    """
-    Build a detailed instruction for the model.
-    """
     type_desc = {
         "mcq": (
             '{ "type":"mcq", "question":"...", "choices":["A","B","C","D"], '
@@ -69,13 +73,9 @@ def _build_user_prompt(subject: str, topic: str, grade_level: str, difficulty: s
             '"answer_text":"True" | "False", "explanation":"..." }'
         ),
     }
-
-    # Only include templates for requested types that we know
     allowed_join = ", ".join(type_desc[t] for t in item_types if t in type_desc)
-
     note_clause = f"\nContext (from student notes):\n{note_text}\n" if note_text else ""
     types_list = ", ".join(item_types)
-
     schema_hint = (
         "{{\n"
         '  "items": [\n'
@@ -85,37 +85,36 @@ def _build_user_prompt(subject: str, topic: str, grade_level: str, difficulty: s
         "  ]\n"
         "}}\n"
     )
-
     return (
-    f"You are generating a quiz for grade level: {grade_level}.\n"
-    f"SUBJECT: {subject}\n"
-    f"TOPIC: {topic}\n"
-    f"Create {n} questions in {subject} (topic: {topic}) at {difficulty} level across these item types: {types_list}.\n"    
-    f"{note_clause}"
-    "Return STRICT JSON matching this schema:\n"
-    f"{schema_hint}\n"
-    "Rules:\n"
-    "- Questions must be solvable without external info beyond common \n"
-    "- Answer must be correct, precise, and unambiguous.\n"
-    "- Use age-appropriate language and math/content standards for {grade_level}.\n"
-    f"- Use age-appropriate language and standards for {grade_level}.\n"
-    f"- Ensure items align with the stated TOPIC above.\n"
-    "- MCQ must use exactly 4 distinct choices.\n"
-    '- True/False must use exactly \"True\" or \"False\" in answer_text.\n'
-    "- Keep explanations brief (1–2 sentences), precise, and tied to the question.\n"
-    "- Ensure all text is clear and unambiguous.\n"
-    "- Ensure answers are correct and matched the question and the explanation.\n"
-    "\n"
-    "INTERNAL CONSISTENCY CHECK (do not output this section—just enforce it):\n"
-    "- For MCQ: answer_index must be an integer in [0..3] and answer_text must EXACTLY\n"
-    "  equal choices[answer_index]. Explanation must justify why that choice is correct\n"
-    "  and, where relevant, why others are not.\n"
-    "- For True/False: answer_text must be exactly \"True\" or \"False\" and the explanation\n"
-    "  must justify that truth value with a fact directly implied by the question/context.\n"
-    "- For Short Answer/Fill-in: answer_text must directly answer the question; explanation\n"
-    "  must be consistent with that answer and not introduce contradictory facts.\n"
-    "- If any item fails these checks, regenerate that item before returning your final JSON.\n"
-)
+        f"You are generating a quiz for grade level: {grade_level}.\n"
+        f"SUBJECT: {subject}\n"
+        f"TOPIC: {topic}\n"
+        f"Create {n} questions in {subject} (topic: {topic}) at {difficulty} level across these item types: {types_list}.\n"
+        f"{note_clause}"
+        "Return STRICT JSON matching this schema:\n"
+        f"{schema_hint}\n"
+        "Rules:\n"
+        "- Questions must be solvable without external info beyond common \n"
+        "- Answer must be correct, precise, and unambiguous.\n"
+        "- Use age-appropriate language and math/content standards for {grade_level}.\n"
+        f"- Use age-appropriate language and standards for {grade_level}.\n"
+        f"- Ensure items align with the stated TOPIC above.\n"
+        "- MCQ must use exactly 4 distinct choices.\n"
+        '- True/False must use exactly \"True\" or \"False\" in answer_text.\n'
+        "- Keep explanations brief (1–2 sentences), precise, and tied to the question.\n"
+        "- Ensure all text is clear and unambiguous.\n"
+        "- Ensure answers are correct and matched the question and the explanation.\n"
+        "\n"
+        "INTERNAL CONSISTENCY CHECK (do not output this section—just enforce it):\n"
+        "- For MCQ: answer_index must be an integer in [0..3] and answer_text must EXACTLY\n"
+        "  equal choices[answer_index]. Explanation must justify why that choice is correct\n"
+        "  and, where relevant, why others are not.\n"
+        "- For True/False: answer_text must be exactly \"True\" or \"False\" and the explanation\n"
+        "  must justify that truth value with a fact directly implied by the question/context.\n"
+        "- For Short Answer/Fill-in: answer_text must directly answer the question; explanation\n"
+        "  must be consistent with that answer and not introduce contradictory facts.\n"
+        "- If any item fails these checks, regenerate that item before returning your final JSON.\n"
+    )
 
 def _coerce_item(it: dict) -> dict | None:
     t = (it.get("type") or "").lower().replace("-", "_")
@@ -138,7 +137,6 @@ def _coerce_item(it: dict) -> dict | None:
             return None
         choices = choices[:4]  # enforce max 4
 
-        # Determine answer_index robustly
         orig_ai = it.get("answer_index")
         ai = None
         if orig_ai is not None:
@@ -156,7 +154,6 @@ def _coerce_item(it: dict) -> dict | None:
                 elif ans in choices:
                     ai = choices.index(ans)
 
-        # Convert 1-based to 0-based if it looks like 1..len
         if isinstance(orig_ai, int) and 1 <= orig_ai <= len(choices):
             ai = orig_ai - 1
 
@@ -197,9 +194,6 @@ def _coerce_item(it: dict) -> dict | None:
     return None
 
 def _gemini_generate(subject: str, topic: str, grade_level: str, difficulty: str, n: int, item_types: List[str], note_text: str | None = None):
-    """
-    Call Gemini to generate items; then parse and normalize them.
-    """
     _assert_gemini()
     api_key = getattr(settings, "GEMINI_API_KEY", None) or os.getenv("GOOGLE_API_KEY")
     model_name = getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
@@ -211,19 +205,18 @@ def _gemini_generate(subject: str, topic: str, grade_level: str, difficulty: str
             temperature=0.4,
             max_output_tokens=2048,
             system_instruction=_build_system(),
-            response_mime_type="application/json",  # JSON-only
-            response_schema=QuizItems,              # Pydantic schema -> structured output
+            response_mime_type="application/json",
+            response_schema=QuizItems,
         )
 
         user_prompt = _build_user_prompt(subject, topic, grade_level, difficulty, n, item_types, note_text)
 
         resp = client.models.generate_content(
             model=model_name,
-            contents=user_prompt,  # string is fine; SDK wraps it into Content/Part
+            contents=user_prompt,
             config=cfg,
         )
 
-        # Prefer structured parse when response_schema is set
         data = getattr(resp, "parsed", None)
         if isinstance(data, BaseModel):
             data = data.model_dump()
@@ -233,7 +226,7 @@ def _gemini_generate(subject: str, topic: str, grade_level: str, difficulty: str
         raw_items = data.get("items") if isinstance(data, dict) else None
         if raw_items is None:
             raw_items = data.get("questions") if isinstance(data, dict) else []
-        if isinstance(raw_items, dict):  # nested again
+        if isinstance(raw_items, dict):
             raw_items = raw_items.get("items", [])
 
         out: List[dict] = []
@@ -256,12 +249,21 @@ def _gemini_generate(subject: str, topic: str, grade_level: str, difficulty: str
 # ---------- Create Quiz + persist items ----------
 
 def _persist_quiz_and_items(
-    db: Session, *, user_id: int, note_id: int | None, subject: str, topic: str | None,
-    difficulty: str, mode: str, types: List[str], items: List[dict], source: str
+    db: Session,
+    *,
+    user_id: Union[str, UUID],
+    note_id: Optional[UUID],
+    subject: str,
+    topic: Optional[str],
+    difficulty: str,
+    mode: str,
+    types: List[str],
+    items: List[dict],
+    source: str,
 ) -> int:
     q = Quiz(
-        user_id=user_id,
-        note_id=note_id,
+        user_id=str(user_id),           # users.id is a String(UUID-as-text)
+        note_id=note_id,                # notes.note_id is UUID
         title=f"{(subject or 'General').title()}" + (f" · {topic}" if topic else "") + f" · {mode.title()}",
         topic=(topic or None),
         difficulty=difficulty,
@@ -296,9 +298,6 @@ def generate_ai(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
-    """
-    Generate a quiz using Gemini *without* note context, then persist it.
-    """
     items = _gemini_generate(
         subject=payload.subject,
         topic=payload.topic,
@@ -328,11 +327,15 @@ def generate_ai_from_note(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
-    """
-    Generate a quiz using Gemini *with* note context (from a notes table).
-    """
-    note = db.execute(text("SELECT content FROM notes WHERE note_id=:nid"), {"nid": payload.note_id}).fetchone()
-    note_text = note[0] if note else ""
+    # ✅ ORM by UUID PK and owner check; Note.og_text holds uploaded/original text
+    note: Optional[Note] = (
+        db.query(Note)
+        .filter(Note.note_id == payload.note_id, Note.user_id == user.id)
+        .first()
+    )
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    note_text = (note.og_text or "").strip()
 
     items = _gemini_generate(
         subject=payload.subject,
@@ -371,11 +374,12 @@ def _quiz_to_dict(q: Quiz) -> Dict[str, Any]:
 
 @router.get("/mine")
 def list_my_quizzes(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    List the current user's quizzes split into "practice" and "exam",
-    plus attach simple stats (attempt count, best score, last taken).
-    """
-    quizzes = db.query(Quiz).filter(Quiz.user_id == user.id).order_by(Quiz.created_at.desc()).all()
+    quizzes = (
+        db.query(Quiz)
+        .filter(Quiz.user_id == user.id)
+        .order_by(Quiz.created_at.desc())
+        .all()
+    )
 
     stats = (
         db.query(
@@ -419,9 +423,6 @@ def list_my_quizzes(db: Session = Depends(get_db), user: User = Depends(get_curr
 
 @router.get("/{quiz_id}", response_model=QuizOut)
 def get_quiz(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Fetch a single quiz (owned by current user) with its items.
-    """
     q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz not found")
@@ -446,9 +447,6 @@ def get_quiz(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(g
 
 @router.post("/{quiz_id}/start")
 def start_practice(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Start a practice attempt. First attempt awards coins; subsequent calls do not.
-    """
     q = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.user_id == user.id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz not found")
@@ -464,12 +462,11 @@ def start_practice(quiz_id: int, db: Session = Depends(get_db), user: User = Dep
 
     att = Attempt(quiz_id=quiz_id, user_id=user.id)
     db.add(att)
-    
-    user.coins_balance = (user.coins_balance or 0) + settings.COIN_PER_QUIZ            # award 1
-    user.coins_earned_total = (user.coins_earned_total or 0) + settings.COIN_PER_QUIZ
-    
-    db.commit()
 
+    user.coins_balance = (user.coins_balance or 0) + settings.COIN_PER_QUIZ
+    user.coins_earned_total = (user.coins_earned_total or 0) + settings.COIN_PER_QUIZ
+
+    db.commit()
 
     return {
         "ok": True,
@@ -495,7 +492,6 @@ def grade_quiz(
     if not q:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    # Load items into a dict
     items = db.query(QuizItem).filter(QuizItem.quiz_id == quiz_id).all()
     item_map: Dict[int, QuizItem] = {it.id: it for it in items}
 
@@ -513,7 +509,6 @@ def grade_quiz(
 
         t = it.type or "mcq"
         if t == "mcq":
-            # user: choice_index ; item: answer_index
             if hasattr(ua, "choice_index"):
                 your_str = str(getattr(ua, "choice_index"))
                 ok = (it.answer_index is not None) and (ua.choice_index == it.answer_index)
@@ -521,7 +516,6 @@ def grade_quiz(
             your = _norm_bool(getattr(ua, "text", ""))
             your_str = getattr(ua, "text", "")
             truth = _norm_bool(it.answer_text or "")
-            # accept t/true/yes/1 vs f/false/no/0
             true_set = {"true","t","yes","y","1"}
             false_set = {"false","f","no","n","0"}
             if truth in true_set:
@@ -531,7 +525,6 @@ def grade_quiz(
             else:
                 ok = _text_norm(it.answer_text or "") == _text_norm(your_str)
         else:
-            # short_answer / fill_blank
             your_str = getattr(ua, "text", "")
             ok = _text_norm(it.answer_text or "") == _text_norm(your_str)
 
@@ -539,7 +532,6 @@ def grade_quiz(
             correct += 1
         per_item.append({"item_id": it.id, "your": your_str, "correct": ok})
 
-    # Persist Result and per-item answers (so review can read them)
     r = Result(
         quiz_id=quiz_id,
         user_id=user.id,
@@ -547,7 +539,7 @@ def grade_quiz(
         time_spent_sec=payload.time_spent_sec or 0
     )
     db.add(r)
-    db.flush()  # get r.id
+    db.flush()
 
     for row in per_item:
         db.add(ResultAnswer(
@@ -557,7 +549,6 @@ def grade_quiz(
             is_correct=row["correct"],
         ))
 
-    # award points
     user.total_points = (user.total_points or 0) + int(correct)
     db.commit()
 

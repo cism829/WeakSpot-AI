@@ -20,4 +20,6 @@ class Settings(BaseModel):
     COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "lax")
     COIN_PER_QUIZ: int = int(os.getenv("COIN_PER_QUIZ", "1"))
     EXAM_COST_COINS: int = int(os.getenv("EXAM_COST_COINS", "5"))
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+
 settings = Settings()

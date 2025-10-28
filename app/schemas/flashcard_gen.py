@@ -1,4 +1,5 @@
-from typing import List, Optional, Literal
+from typing import List, Optional
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 class FlashcardItemOut(BaseModel):
@@ -16,7 +17,8 @@ class FlashcardOut(BaseModel):
     items: List[FlashcardItemOut]
 
 class GenerateBaseFC(BaseModel):
-    user_id: int = 1
+    # Optional; we use get_current_user on the server anyway
+    user_id: Optional[UUID] = None
     subject: str = "general"
     topic: str = ""
     num_items: int = Field(10, ge=1, le=50)
@@ -26,7 +28,9 @@ class GenerateWithoutNoteFC(GenerateBaseFC):
     pass
 
 class GenerateWithNoteFC(GenerateBaseFC):
-    note_id: int
+    # ✅ note_id is UUID
+    note_id: UUID
+
 class FlashcardItemModel(BaseModel):
     front: str
     back: str

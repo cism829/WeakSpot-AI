@@ -1,6 +1,6 @@
 # app/api/rooms.py
 
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
 from app.models.chat import Rooms, RoomInfo
@@ -14,6 +14,28 @@ def get_db():
     finally:
         db.close()
 
+@router.get("/rooms")
+def list_rooms(
+    q: str | None = Query(None, description="Optional search on name/subject"),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Rooms)
+    if q:
+        like = f"%{q}%"
+        query = query.filter((Rooms.room_name.ilike(like)) | (Rooms.room_subject.ilike(like)))
+    rows = query.order_by(Rooms.room_id.desc()).all()
+    # Return [] when there are no rooms (200 OK)
+    return [
+        {
+            "room_id": r.room_id,
+            "room_name": r.room_name,
+            "room_subject": r.room_subject,
+            "description": r.description,
+            "is_private": r.is_private,   # "public" | "private"
+        }
+        for r in rows
+    ]
+    
 @router.post("/rooms")
 def create_room(
     room_name: str = Form(...),
@@ -79,7 +101,7 @@ def check_access(room_id: int, user_id: str, db: Session = Depends(get_db)):
 
     entry = db.query(RoomInfo).filter(
         RoomInfo.room_id == room_id,
-        RoomInfo.user_id == user_id,  # <-- no int()
+        RoomInfo.user_id == user_id,  
     ).first()
 
     if entry and entry.has_access:

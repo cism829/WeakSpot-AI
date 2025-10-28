@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from typing import Dict, Any, List, Optional
+from uuid import UUID
 import json
 import os
 
@@ -19,21 +19,22 @@ from app.models.user import User
 from app.models.flashcard import Flashcard
 from app.models.flashcard_item import FlashcardItem
 from app.models.note import Note
-from app.schemas.flashcard_gen import GenerateWithoutNoteFC, GenerateWithNoteFC, FlashcardOut, FlashcardItems, FlashcardItemModel
+from app.schemas.flashcard_gen import (
+    GenerateWithoutNoteFC,
+    GenerateWithNoteFC,
+    FlashcardOut,
+    FlashcardItems,
+    FlashcardItemModel,
+)
 
-# Reuse the same helpers/quasi-system behaviors as quizzes
-from app.api.quizzes import _assert_gemini, _build_system  # identical behavior
+# Reuse helpers from quizzes
+from app.api.quizzes import _assert_gemini, _build_system
 
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
-
-
-# ---------- Prompt builder (mirrors quizzes style) ----------
+# ---------- Prompt builder ----------
 
 def _build_flashcard_user_prompt(subject: str, topic: str, n: int, note_text: str | None = None) -> str:
-    """
-    Build a JSON-only instruction, same tone/strictness as quizzes, but for flashcards.
-    """
     schema_hint = (
         "{\n"
         '  "items": [\n'
@@ -41,13 +42,11 @@ def _build_flashcard_user_prompt(subject: str, topic: str, n: int, note_text: st
         "  ]\n"
         "}\n"
     )
-
     note_clause = f"\nContext (from student notes):\n{note_text}\n" if note_text else ""
-
     return (
         f"Create exactly {n} study flashcards.\n"
         f"SUBJECT: {subject}\n"
-        f"TOPIC: {topic}\n"        
+        f"TOPIC: {topic}\n"
         f"{note_clause}"
         "Return STRICT JSON matching this schema:\n"
         f"{schema_hint}\n"
@@ -69,18 +68,13 @@ def _build_flashcard_user_prompt(subject: str, topic: str, n: int, note_text: st
         "- If any item fails, fix it before returning the final JSON.\n"
     )
 
-# ---------- AI call (copies quizzes' SDK pattern) ----------
+# ---------- AI call ----------
 
 def _gemini_generate_flashcards(subject: str, topic: str, n: int, note_text: str | None = None) -> List[dict]:
-    """
-    Call Gemini exactly like quizzes: SDK client, response_schema -> parsed output,
-    strict JSON, then coerce to a simple dict list with front/back/hint.
-    """
     _assert_gemini()
     api_key = getattr(settings, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY")
     model_name = getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
 
-    # Dev stub to keep end-to-end working without the network
     if os.getenv("DEV_STUB_FLASHCARDS") == "1":
         return [{"front": f"Term {i+1}", "back": f"Definition {i+1}", "hint": None} for i in range(n)]
 
@@ -90,9 +84,9 @@ def _gemini_generate_flashcards(subject: str, topic: str, n: int, note_text: str
         cfg = gtypes.GenerateContentConfig(
             temperature=0.3,
             max_output_tokens=1024,
-            system_instruction=_build_system(),       # same tone/rules as quizzes
-            response_mime_type="application/json",   # force JSON
-            response_schema=FlashcardItems,          # <-- Pydantic schema
+            system_instruction=_build_system(),
+            response_mime_type="application/json",
+            response_schema=FlashcardItems,
         )
 
         user_prompt = _build_flashcard_user_prompt(subject, topic, n, note_text)
@@ -100,16 +94,9 @@ def _gemini_generate_flashcards(subject: str, topic: str, n: int, note_text: str
         resp = client.models.generate_content(
             model=model_name,
             contents=user_prompt,
-            config=gtypes.GenerateContentConfig(
-            temperature=0.3,
-            max_output_tokens=1024,
-            system_instruction=_build_system(),
-            response_mime_type="application/json",
-            response_schema=FlashcardItems,  # Pydantic schema
-        ),
+            config=cfg,
         )
 
-        # Prefer structured parse when response_schema is set
         data = getattr(resp, "parsed", None)
         if isinstance(data, BaseModel):
             data = data.model_dump()
@@ -149,14 +136,11 @@ def generate_ai_flashcards(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
-    """
-    Generate flashcards without note context, then persist and return the set.
-    """
     items = _gemini_generate_flashcards(subject=payload.subject, topic=payload.topic, n=payload.num_items)
 
     fc = Flashcard(
-        user_id=user.id,
-        note_id=None,
+        user_id=user.id,           # users.id is String(UUID text)
+        note_id=None,              # no note context
         title=payload.title or (f"{payload.subject} · {payload.topic}".strip(" ·")),
         subject=payload.subject,
         topic=payload.topic or None,
@@ -186,36 +170,24 @@ def generate_ai_flashcards_from_note(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
-    """
-    Generate flashcards with note context, then persist and return the set.
-    Tries ORM first for note text; falls back to the raw-SQL style used in quizzes.py, if needed.
-    """
-    # Prefer ORM
-    note_text: Optional[str] = None
-    note_obj: Optional[Note] = db.query(Note).filter(Note.id == payload.note_id, Note.user_id == user.id).first()
-    if note_obj is not None:
-        # Common columns are text/content/body; pick what's available
-        note_text = getattr(note_obj, "text", None) or getattr(note_obj, "content", None) or getattr(note_obj, "body", None) or ""
+    # ✅ fetch by UUID PK + ownership; Note.og_text holds uploaded/original text
+    note: Optional[Note] = (
+        db.query(Note)
+        .filter(Note.note_id == payload.note_id, Note.user_id == user.id)
+        .first()
+    )
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    note_text = (note.og_text or "").strip()
 
-    # Fallback to the same style used in quizzes (raw SQL by id/file)
-    if not note_text:
-        try:
-            row = db.execute(text("SELECT content FROM notes WHERE id=:nid OR file=:nid"), {"nid": payload.note_id}).fetchone()
-            if row and row[0]:
-                note_text = row[0]
-        except Exception:
-            pass
-
-    note_text = (note_text or "").strip()
-    if not note_text:
-        raise HTTPException(status_code=404, detail="Note not found or has no content")
-
-    items = _gemini_generate_flashcards(subject=payload.subject, topic=payload.topic, n=payload.num_items, note_text=note_text)
+    items = _gemini_generate_flashcards(
+        subject=payload.subject, topic=payload.topic, n=payload.num_items, note_text=note_text or None
+    )
 
     fc = Flashcard(
         user_id=user.id,
         note_id=payload.note_id,
-        title=payload.title or f"Flashcards from {getattr(note_obj, 'filename', 'note')} · {payload.subject} · {payload.topic}".strip(),
+        title=payload.title or f"Flashcards from note {payload.note_id} · {payload.subject} · {payload.topic}".strip(),
         subject=payload.subject,
         topic=payload.topic or None,
         source="ai_note",

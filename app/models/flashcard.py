@@ -1,13 +1,13 @@
 from sqlalchemy import Column, Integer, ForeignKey, String, DateTime, Text, func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
-
+from sqlalchemy.dialects.postgresql import UUID
 class Flashcard(Base):
     __tablename__ = "flashcards"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
-    note_id = Column(Integer, ForeignKey("notes.id", ondelete="SET NULL"), nullable=True)
+    note_id = Column(UUID(as_uuid=True), ForeignKey("notes.note_id", ondelete="CASCADE"), index=True, nullable=True)
 
     title = Column(String(255), nullable=False, default="Generated Flashcards")
     subject = Column(String(100), default="general")
