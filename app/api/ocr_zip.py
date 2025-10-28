@@ -87,8 +87,12 @@ async def ocr_from_zip(
             jpeg_bytes = preprocess(path)
             text = ocr_bytes(client, jpeg_bytes)
 
+            # Support either .id or .user_id, prefer .id
+            owner_id = getattr(user, "id", None) or getattr(user, "user_id", None)
+            if not owner_id:
+                raise HTTPException(status_code=400, detail="Current user has no id")
             note = Note(
-                user_id=getattr(user, "user_id"),
+                user_id=owner_id,
                 og_text=text,
                 status="ocr_done",
             )
@@ -128,7 +132,6 @@ async def ocr_from_zip(
             chunk_and_store(db, note, client, embed_model="text-embedding-3-small", max_chars=800, overlap=80)
 
 
-            created.append({"note_id": str(note.note_id)})
         except Exception as e:
             print("OCR/insert failure for", path.name, "->", e)
             failures.append({"file": path.name, "error": str(e)})

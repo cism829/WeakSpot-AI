@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import Card from "../components/Card";
 import { useAuth } from "../context/Authcontext";
 import {
@@ -48,6 +48,10 @@ export default function Flashcards() {
     const [active, setActive] = useState(null);
     const [loadingActive, setLoadingActive] = useState(false);
 
+    // viewer
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [showBack, setShowBack] = useState(false); // 👈 controls flip
+
     const [err, setErr] = useState("");
 
     // load sets
@@ -75,7 +79,7 @@ export default function Flashcards() {
             try {
                 const res = await listMyNotes(token);
                 if (!cancel && Array.isArray(res)) setNotes(res);
-            } catch (e) { /* optional */ }
+            } catch { /* ignore */ }
         })();
         return () => { cancel = true; };
     }, [token]);
@@ -92,6 +96,8 @@ export default function Flashcards() {
                 if (!cancel) {
                     setActive(fc);
                     setBusyA(false); setBusyB(false);
+                    setCurrentIndex(0);
+                    setShowBack(false); // 👈 reset flip when loading a set
                 }
             } catch (e) {
                 if (!cancel) setErr(`Failed to load selected set: ${errorDetail(e)}`);
@@ -101,6 +107,24 @@ export default function Flashcards() {
         })();
         return () => { cancel = true; };
     }, [activeId, token]);
+
+    // reset flip when moving between cards
+    useEffect(() => {
+        setShowBack(false);
+    }, [currentIndex]);
+
+    // keyboard: ← / → navigate, Space/Enter flip
+    useEffect(() => {
+        const onKey = (e) => {
+            if (!active?.items?.length) return;
+            if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+            else if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+            else if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleFlip(); }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [active, currentIndex, showBack]);
 
     // generate (general)
     const onGenerateGeneral = async () => {
@@ -130,11 +154,10 @@ export default function Flashcards() {
         try {
             const sel = notes.find(n => String(n.id) === String(selectedNoteId));
             const display = sel?.filename || sel?.name || sel?.title || (sel?.preview_text ? sel.preview_text.slice(0, 40) : `Note ${String(sel?.id).slice(0, 8)}`);
-            // subject/topic are ignored by backend for note flow; we still send for schema compat.
             const payload = {
                 note_id: sel.id,
-                subject: "",              // ignored
-                topic: "",                // ignored
+                subject: "",
+                topic: "",
                 num_items: countB,
                 title: `Flashcards from ${display}`,
             };
@@ -148,8 +171,20 @@ export default function Flashcards() {
         }
     };
 
+    // ---- Viewer helpers ----
     const total = active?.items?.length || 0;
-    const current = total ? active.items[0] : null; // simple viewer below
+    const safeIndex = total ? Math.min(currentIndex, total - 1) : 0;
+    const current = total ? active.items[safeIndex] : null;
+
+    const goPrev = () => {
+        if (!total) return;
+        setCurrentIndex((i) => (i - 1 + total) % total);
+    };
+    const goNext = () => {
+        if (!total) return;
+        setCurrentIndex((i) => (i + 1) % total);
+    };
+    const toggleFlip = () => setShowBack((v) => !v);
 
     return (
         <div className="container">
@@ -194,7 +229,7 @@ export default function Flashcards() {
             </div>
 
             <div style={{ marginTop: 16 }}>
-                <Card title="My flashcard sets" tone="purple" subtitle={loadingSets ? "Loading…" : "Click a set to view first card"}>
+                <Card title="My flashcard sets" tone="purple" subtitle={loadingSets ? "Loading…" : "Click a set to view"}>
                     {loadingSets ? (
                         <div className="muted">Loading your sets…</div>
                     ) : sets.length === 0 ? (
@@ -218,18 +253,57 @@ export default function Flashcards() {
 
             {activeId && (
                 <div style={{ marginTop: 16 }}>
-                    <Card title={active?.title || "Flashcards"} tone="teal" subtitle={total ? `First of ${total} cards` : "No cards"}>
+                    <Card
+                        title={active?.title || "Flashcards"}
+                        tone="teal"
+                        subtitle={total ? `Card ${safeIndex + 1} of ${total} • ${showBack ? "Showing back" : "Showing front"}` : "No cards"}
+                    >
                         {loadingActive ? (
                             <div className="muted">Loading…</div>
                         ) : total ? (
                             <div>
-                                <div className="muted" style={{ marginBottom: 6 }}>Front</div>
-                                <div style={{ marginBottom: 10 }}>{current.front}</div>
-                                <div className="muted" style={{ marginBottom: 6 }}>Back</div>
-                                <div style={{ whiteSpace: "pre-wrap" }}>{current.back}</div>
-                                {current.hint && <div className="muted" style={{ marginTop: 8 }}>Hint: {current.hint}</div>}
+                                {/* Click-to-flip zone */}
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={toggleFlip}
+                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") toggleFlip(); }}
+                                    className="flashcard"
+                                    style={{
+                                        border: "1px solid var(--border)",
+                                        borderRadius: 12,
+                                        padding: 16,
+                                        cursor: "pointer",
+                                        userSelect: "none",
+                                        transition: "transform 0.2s ease",
+                                    }}
+                                    title="Click to flip (or press Space/Enter)"
+                                >
+                                    <div className="muted" style={{ marginBottom: 6 }}>
+                                        {showBack ? "Back" : "Front"}
+                                    </div>
+                                    <div style={{ whiteSpace: "pre-wrap" }}>
+                                        {showBack ? current.back : current.front}
+                                    </div>
+                                    {!showBack && current.hint && (
+                                        <div className="muted" style={{ marginTop: 10 }}>
+                                            Hint: {current.hint}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Controls */}
+                                <div className="row" style={{ gap: 8, marginTop: 16, justifyContent: "space-between" }}>
+                                    <button className="btn" onClick={goPrev} disabled={!total}>← Back</button>
+                                    <button className="btn" onClick={toggleFlip}>{showBack ? "Show Front" : "Show Answer"}</button>
+                                    <button className="btn btn--primary" onClick={goNext} disabled={!total}>Next →</button>
+                                </div>
+                                <div className="muted" style={{ marginTop: 6, textAlign: "center" }}>
+                                </div>
                             </div>
-                        ) : <div className="muted">This set has no cards.</div>}
+                        ) : (
+                            <div className="muted">This set has no cards.</div>
+                        )}
                     </Card>
                 </div>
             )}

@@ -1,9 +1,9 @@
-
 import React, { useEffect, useState } from "react";
 import Card from "../components/Card";
 import FileUploader from "../components/FileUploader";
 import { useAuth } from "../context/Authcontext";
 import { listMyNotes, uploadNoteFile, createNote, deleteNote } from "../lib/api";
+import { ocrRepairSuggest } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
 export default function Notes() {
@@ -26,7 +26,7 @@ export default function Notes() {
         }
     }
 
-    useEffect(() => { refresh(); /* on mount */ }, []);
+    useEffect(() => { refresh(); }, []); // on mount
 
     async function handleUpload(files) {
         if (!files?.length) return;
@@ -69,6 +69,20 @@ export default function Notes() {
         }
     }
 
+    // NEW: suggest a repair and jump to repair page
+    async function handleRepair(noteId) {
+        try {
+            const out = await ocrRepairSuggest(noteId, token); // { repair_id, ... }
+            if (out?.repair_id) {
+                nav(`/notes/repair/${out.repair_id}`);
+            } else {
+                alert("No repair suggestion created.");
+            }
+        } catch (e) {
+            alert(e?.detail || e?.message || "Failed to create repair suggestion");
+        }
+    }
+
     return (
         <div className="container">
             <h2>📝 My Notes</h2>
@@ -99,7 +113,9 @@ export default function Notes() {
                         {notes.map((n) => (
                             <li key={n.id} className="list__row">
                                 <div className="col">
-                                    <div className="muted" style={{ fontSize: 12 }}>{n.created_at?.slice(0, 19).replace("T", " ")}</div>
+                                    <div className="muted" style={{ fontSize: 12 }}>
+                                        {n.created_at?.slice(0, 19).replace("T", " ")}
+                                    </div>
                                     <div className="ellipsis">{n.preview_text || <i>(no text yet)</i>}</div>
                                 </div>
                                 <span className={`badge ${n.status === "processed" ? "badge--success" : ""}`}>
@@ -108,6 +124,10 @@ export default function Notes() {
                                 <div className="row" style={{ gap: 8 }}>
                                     <button className="btn btn--sm" onClick={() => nav(`/notes-analysis/${n.id}`)}>
                                         Analyze
+                                    </button>
+                                    {/* NEW: Repair OCR */}
+                                    <button className="btn btn--sm" onClick={() => handleRepair(n.id)}>
+                                        Repair OCR
                                     </button>
                                     <button className="btn btn--sm btn--ghost" onClick={() => handleDelete(n.id)}>
                                         Delete

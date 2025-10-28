@@ -229,6 +229,65 @@ export const analyzeNote = (id, token, subject) => {
 };
 
 export const getLatestAnalysis = (id, token) => req(`/analysis/${id}/latest`, { token });
+
+export async function ocrZipUpload(file, token) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${API_URL}/ocr/zip`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+    credentials: "include",
+  });
+  const text = await res.text();
+  let data;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data?.detail || res.statusText || "OCR zip upload failed");
+  return data;
+}
+
+// Create chunks/embeddings for all (or only missing)
+export const chunkBackfill = (opts = {}, token) => {
+  const {
+    only_missing = true, max_chars = 800, overlap = 80,
+    embed_model = "text-embedding-3-small",
+  } = opts;
+  const qs = new URLSearchParams({
+    only_missing: String(only_missing),
+    max_chars: String(max_chars),
+    overlap: String(overlap),
+    embed_model,
+  }).toString();
+  return req(`/chunk/backfill?${qs}`, { method: "POST", token });
+};
+
+// Chunk one note
+export const chunkOne = (noteId, opts = {}, token) => {
+  const {
+    max_chars = 800, overlap = 80,
+    embed_model = "text-embedding-3-small",
+  } = opts;
+  const qs = new URLSearchParams({
+    max_chars: String(max_chars),
+    overlap: String(overlap),
+    embed_model,
+  }).toString();
+  return req(`/chunk/${noteId}?${qs}`, { method: "POST", token });
+};
+
+// OCR repair: suggest → apply/reject → get one
+export const ocrRepairSuggest = (noteId, token) =>
+  req(`/ocr/repair/suggest/${noteId}`, { method: "POST", token });
+
+export const ocrApply = (repairId, edited_text, token) =>
+  req(`/ocr/repair/apply/${repairId}`, { method: "POST", body: { edited_text }, token });
+
+export const ocrReject = (repairId, token) =>
+  req(`/ocr/repair/reject/${repairId}`, { method: "POST", token });
+
+export const ocrGetRepair = (repairId, token) =>
+  req(`/ocr/repair/${repairId}`, { token });
+
 // ------------------------------------------------------------
 // Tutors & Professors
 // ------------------------------------------------------------

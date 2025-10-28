@@ -9,7 +9,7 @@ from app.core.db import get_db
 from app.models.note import Note
 from app.models.note_repair import NoteRepair
 from app.services.ocr_repair import suggest_repair_for_text
-
+from app.core.security import get_current_user
 router = APIRouter(prefix="/ocr/repair", tags=["ocr-repair"])
 
 class RepairSuggestionOut(BaseModel):
@@ -23,6 +23,24 @@ class RepairSuggestionOut(BaseModel):
 class ApplyIn(BaseModel):
     edited_text: Optional[str] = None   # if user edits before applying
 
+@router.get("/{repair_id}")
+def get_repair(repair_id: UUID, db: Session = Depends(get_db), user = Depends(get_current_user)):
+    rep = db.query(NoteRepair).filter(
+        NoteRepair.repair_id == repair_id,
+        # optionally enforce ownership if model stores user_id:
+        # NoteRepair.user_id == user.id
+    ).first()
+    if not rep:
+        raise HTTPException(status_code=404, detail="repair not found")
+    return {
+        "repair_id": str(rep.repair_id),
+        "note_id": str(rep.note_id),
+        "status": rep.status,
+        "original_text": rep.original_text,
+        "suggested_text": rep.suggested_text,
+        "suggestion_log": rep.suggestion_log,
+    }
+    
 @router.post("/suggest/{note_id}", response_model=RepairSuggestionOut)
 def suggest(note_id: UUID, db: Session = Depends(get_db)):
     note = db.query(Note).filter(Note.note_id == note_id).first()
