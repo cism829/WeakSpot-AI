@@ -96,7 +96,7 @@ export default function Progress() {
             <h2>📈 Your Progress</h2>
             <div className="grid grid--3">
                 <Stat label="Quizzes completed" value={String(stats.completedCount)} emoji="✅" tone="blue" />
-                <Stat label="Avg. score" value={`${stats.avgScore}%`} emoji="🎯" tone="purple" />
+                <Stat label="Avg. score" value={`${stats.avgScore}`} emoji="🎯" tone="purple" />
                 <Stat label="Study streak" value={`${stats.streakDays} day${stats.streakDays === 1 ? "" : "s"}`} emoji="🔥" tone="green" />
             </div>
 
