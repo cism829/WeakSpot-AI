@@ -1,5 +1,3 @@
-# app/api/flashcards.py
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
@@ -7,10 +5,8 @@ from uuid import UUID
 import json
 import os
 
+from openai import OpenAI  # ✅ OpenAI SDK
 from pydantic import BaseModel
-from google import genai
-from google.genai import types as gtypes
-from google.genai import errors as genai_errors
 
 from app.core.config import settings
 from app.core.db import get_db
@@ -24,15 +20,14 @@ from app.schemas.flashcard_gen import (
     GenerateWithNoteFC,
     FlashcardOut,
     FlashcardItems,
-    FlashcardItemModel,
 )
 
-# Reuse helpers from quizzes
-from app.api.quizzes import _assert_gemini, _build_system
+# Reuse helpers from quizzes (no circular import)
+from app.api.quizzes import _assert_openai, _build_system
 
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
-# ---------- Prompt builder ----------
+# ---------- Prompt builders ----------
 
 def _build_flashcard_prompt_general(subject: str, topic: str, n: int) -> str:
     schema_hint = (
@@ -76,61 +71,162 @@ def _build_flashcard_prompt_from_note(n: int, note_text: str) -> str:
         "STRICT OUTPUT: JSON only (no prose, no code fences).\n"
     )
 
-# ---------- AI call ----------
+def _strictify_schema(schema: dict) -> dict:
+    """
+    Make a Pydantic JSON schema compatible with OpenAI strict JSON schema:
+    - additionalProperties:false on every object
+    - required lists ALL keys in properties
+    - properties that were optional are allowed to be null
+    - ensure root is an object
+    """
+    import copy
+    sc = copy.deepcopy(schema)
 
-def _gemini_generate_flashcards(subject: str, topic: str, n: int, note_text: str | None = None) -> List[dict]:
-    _assert_gemini()
-    api_key = getattr(settings, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY")
-    model_name = getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
+    def allow_null(prop_schema: dict) -> dict:
+        # If already allows null, keep it; else wrap to allow null
+        if not isinstance(prop_schema, dict):
+            return prop_schema
+        if prop_schema.get("type") == "null":
+            return prop_schema
+        if prop_schema.get("nullable") is True:
+            return {"anyOf": [prop_schema, {"type": "null"}]}
+        t = prop_schema.get("type")
+        if isinstance(t, list) and "null" in t:
+            return prop_schema
+        if isinstance(t, str):
+            return {"type": [t, "null"], **{k: v for k, v in prop_schema.items() if k != "type"}}
+        # Fallback: wrap with anyOf
+        if "anyOf" in prop_schema:
+            # if anyOf already contains null, keep; else add it
+            if not any(isinstance(x, dict) and x.get("type") == "null" for x in prop_schema["anyOf"]):
+                return {"anyOf": prop_schema["anyOf"] + [{"type": "null"}]}
+            return prop_schema
+        return {"anyOf": [prop_schema, {"type": "null"}]}
 
-    if os.getenv("DEV_STUB_FLASHCARDS") == "1":
-        return [{"front": f"Term {i+1}", "back": f"Definition {i+1}", "hint": None} for i in range(n)]
+    def walk(node: dict):
+        if not isinstance(node, dict):
+            return
+        # Close all objects
+        if node.get("type") == "object":
+            node["additionalProperties"] = False
+            props = node.get("properties") or {}
+            # Compute full required list = all keys in properties
+            if isinstance(props, dict):
+                all_keys = list(props.keys())
+                # If some were optional, allow null on them
+                existing_required = set(node.get("required") or [])
+                for k in all_keys:
+                    if k not in existing_required:
+                        props[k] = allow_null(props[k])
+                node["required"] = all_keys
 
-    client = genai.Client(api_key=api_key)
+        # Recurse common schema containers
+        for key in ("properties", "$defs", "definitions"):
+            sub = node.get(key)
+            if isinstance(sub, dict):
+                for v in sub.values():
+                    walk(v)
+
+        for key in ("items", "anyOf", "oneOf", "allOf"):
+            sub = node.get(key)
+            if isinstance(sub, dict):
+                walk(sub)
+            elif isinstance(sub, list):
+                for v in sub:
+                    if isinstance(v, dict):
+                        walk(v)
+
+    walk(sc)
+
+    # Ensure root object
+    if sc.get("type") != "object":
+        sc = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"data": sc},
+            "required": ["data"],
+        }
+    return sc
+
+# ---------- OpenAI call ----------
+
+
+# --- replace your _oai_json_call with this version ---
+def _oai_json_call(schema_model: BaseModel.__class__, user_prompt: str) -> dict:
+    model_name = (
+        getattr(settings, "OPENAI_MODEL", None)
+        or os.getenv("OPENAI_MODEL")
+        or "gpt-4o-mini"
+    )
+    client = OpenAI(api_key=getattr(settings, "OPENAI_API_KEY", None) or os.getenv("OPENAI_API_KEY"))
+
+    raw_schema = schema_model.model_json_schema()
+    schema_name = raw_schema.get("title") or schema_model.__name__
+    schema = _strictify_schema(raw_schema)
+    try:
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": _build_system()},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "schema": schema,
+                    "strict": True,
+                },
+            },
+            temperature=0.3,
+            max_tokens=1024,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"OpenAI error: {e}")
+
+    text = None
+    try:
+        text = resp.choices[0].message.content
+    except Exception:
+        pass
+
+    if not text:
+        raise HTTPException(status_code=502, detail="OpenAI returned an empty response")
 
     try:
-        cfg = gtypes.GenerateContentConfig(
-            temperature=0.3,
-            max_output_tokens=1024,
-            system_instruction=_build_system(),
-            response_mime_type="application/json",
-            response_schema=FlashcardItems,
-        )
+        return json.loads(text)
+    except Exception:
+        s = text.strip().strip("`")
+        s = s[s.find("{"): s.rfind("}") + 1]
+        try:
+            return json.loads(s)
+        except Exception:
+            raise HTTPException(status_code=502, detail="OpenAI returned non-JSON content")
 
-        # ---- choose prompt by flow ----
-        if note_text:
-            user_prompt = _build_flashcard_prompt_from_note(n=n, note_text=note_text)
-        else:
-            user_prompt = _build_flashcard_prompt_general(subject=subject, topic=topic, n=n)
+def _openai_generate_flashcards(subject: str, topic: str, n: int, note_text: str | None = None) -> List[dict]:
+    _assert_openai()
 
-        resp = client.models.generate_content(model=model_name, contents=user_prompt, config=cfg)
+    if note_text:
+        user_prompt = _build_flashcard_prompt_from_note(n=n, note_text=note_text)
+    else:
+        user_prompt = _build_flashcard_prompt_general(subject=subject, topic=topic, n=n)
 
-        data = getattr(resp, "parsed", None)
-        if isinstance(data, BaseModel):
-            data = data.model_dump()
-        elif data is None:
-            data = json.loads(resp.text or "{}")
+    data = _oai_json_call(FlashcardItems, user_prompt)
 
-        items = (data or {}).get("items") or []
-        out: List[dict] = []
-        for it in items[:n]:
-            front = (it.get("front") or "").strip()
-            back = (it.get("back") or "").strip()
-            hint = (it.get("hint") or None)
-            hint = (hint.strip() if isinstance(hint, str) and hint.strip() else None)
-            if front and back:
-                out.append({"front": front, "back": back, "hint": hint})
+    items = (data or {}).get("items") or []
+    out: List[dict] = []
+    for it in items[:n]:
+        front = (it.get("front") or "").strip()
+        back = (it.get("back") or "").strip()
+        hint = (it.get("hint") or None)
+        hint = (hint.strip() if isinstance(hint, str) and hint.strip() else None)
+        if front and back:
+            out.append({"front": front, "back": back, "hint": hint})
 
-        if not out:
-            print("DEBUG raw model text:", (resp.text or "")[:1000])
-            raise HTTPException(status_code=502, detail="Gemini returned no usable flashcards")
+    if not out:
+        raise HTTPException(status_code=502, detail="OpenAI returned no usable flashcards")
 
-        return out
-
-    except genai_errors.APIError as e:
-        raise HTTPException(status_code=e.code or 502, detail=f"Gemini error: {e.message}")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Gemini error: {e}")
+    return out
 
 # ---------- Endpoints ----------
 
@@ -140,11 +236,11 @@ def generate_ai_flashcards(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
-    items = _gemini_generate_flashcards(subject=payload.subject, topic=payload.topic, n=payload.num_items)
+    items = _openai_generate_flashcards(subject=payload.subject, topic=payload.topic, n=payload.num_items)
 
     fc = Flashcard(
-        user_id=user.id,           # users.id is String(UUID text)
-        note_id=None,              # no note context
+        user_id=user.id,
+        note_id=None,
         title=payload.title or (f"{payload.subject} · {payload.topic}".strip(" ·")),
         subject=payload.subject,
         topic=payload.topic or None,
@@ -174,7 +270,6 @@ def generate_ai_flashcards_from_note(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
-    # ✅ fetch by UUID PK + ownership; Note.og_text holds uploaded/original text
     note: Optional[Note] = (
         db.query(Note)
         .filter(Note.note_id == payload.note_id, Note.user_id == user.id)
@@ -184,7 +279,7 @@ def generate_ai_flashcards_from_note(
         raise HTTPException(status_code=404, detail="Note not found")
     note_text = (note.og_text or "").strip()
 
-    items = _gemini_generate_flashcards(
+    items = _openai_generate_flashcards(
         subject=payload.subject, topic=payload.topic, n=payload.num_items, note_text=note_text or None
     )
 
