@@ -9,10 +9,8 @@ load_dotenv()
 def normalize_pg_url(url: str) -> str:
     if not url:
         return url
-    # upgrade legacy "postgres://" to modern SQLAlchemy format
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+psycopg://", 1)
-    # default to psycopg v3 driver if none specified
     if url.startswith("postgresql://") and "+psycopg" not in url and "+psycopg2" not in url:
         url = url.replace("postgresql://", "postgresql+psycopg://", 1)
     return url
@@ -29,7 +27,6 @@ def parse_cors(origins_env: str | None, default_list: list[str]) -> list[str]:
     return parts or default_list
 
 class Settings(BaseModel):
-    # 🔒 Postgres only (no SQLite fallback)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "postgresql+psycopg://app:app@localhost:5432/app",
