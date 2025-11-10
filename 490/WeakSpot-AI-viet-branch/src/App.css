@@ -1,0 +1,315 @@
+/* =========================
+   Global App Styles (enhanced)
+   Works with src/styling/theme.css + globals.css variables
+   ========================= */
+:root {
+  --radius: var(--radius, 12px);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,.06);
+  --shadow-md: 0 6px 18px rgba(0,0,0,.12);
+  --shadow-lg: 0 12px 30px rgba(0,0,0,.18);
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Typography */
+h1, h2, h3 {
+  color: var(--text);
+  line-height: 1.2;
+  margin: 0 0 12px 0;
+}
+h1 { font-size: clamp(28px, 3.2vw, 36px); }
+h2 { font-size: clamp(22px, 2.2vw, 28px); }
+h3 { font-size: clamp(18px, 1.8vw, 22px); }
+p { color: var(--text); }
+
+/* Utilities */
+.muted { color: var(--muted); }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.card + .card { margin-top: 16px; }
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+.card-body { padding: 16px 18px; }
+
+/* Inputs & Buttons */
+.input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s, color .15s;
+}
+.input:focus, select:focus, textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 25%, transparent);
+}
+button, .btn {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+}
+button:hover, .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+button:active, .btn:active { transform: translateY(0); }
+
+.btn--primary {
+  background: var(--blue);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--blue) 40%, transparent);
+}
+.btn--primary:hover { box-shadow: 0 10px 22px color-mix(in srgb, var(--blue) 55%, transparent); }
+
+.btn--ghost {
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+
+/* =========================================================================
+   STUDY GROUPS (Room list)
+   ========================================================================= */
+.container {
+  width: 100%;
+}
+.rooms {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+.room-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  text-align: left;
+}
+.room-box h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.room-box p { color: var(--muted); margin: 0 0 8px 0; min-height: 40px; }
+.room-box button {
+  justify-self: start;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+.room-box button:hover {
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--purple) 55%, transparent);
+}
+
+/* =========================================================================
+   CREATE ROOM
+   ========================================================================= */
+.create-room-con {
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.create-room-title { text-align: left; }
+.room-form form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.room-form form label {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  font-weight: 600;
+}
+.room-form input[type="text"],
+.room-form input[type="password"],
+.room-form textarea,
+.room-form select {
+  background: var(--card);
+}
+.file-upload {
+  display: flex; align-items: center; gap: 10px;
+}
+.file-upload input[type="file"] {
+  display: block;
+  padding: 8px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card) 80%, var(--blue-soft));
+}
+.image-preview {
+  width: 120px; height: 80px; object-fit: cover; border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+/* =========================================================================
+   CHAT
+   ========================================================================= */
+.chat-container {
+  max-width: 860px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+.message-box {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px;
+  min-height: 360px;
+  max-height: 60vh;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+}
+#messages {
+  overflow-y: auto;
+  max-height: 100%;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+/* ensure anchors/buttons remain clickable even if parent bubbles set pointer-events */
+#messages a, #messages button {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 5;
+  cursor: pointer;
+}
+#messages a { text-decoration: underline; }
+
+.user-text {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.user-text form {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+}
+
+/* Composer elements */
+.user-chat {
+  border-radius: 999px;
+  padding: 12px 16px;
+}
+.file-upload-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: inline-grid; place-items: center;
+  background: var(--blue-soft);
+  color: var(--blue);
+  border: 1px solid var(--border);
+  font-weight: 900;
+  line-height: 0;
+}
+.send-btn {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  padding: 0 18px;
+  border-radius: 999px;
+}
+.send-btn[disabled] {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* Message bubbles */
+#messages p {
+  margin: 0;
+  display: inline-block;
+  max-width: 78%;
+  padding: 10px 12px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+#messages p.notification {
+  justify-self: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-style: italic;
+}
+#messages p.user {
+  justify-self: end;
+  background: color-mix(in srgb, var(--blue) 10%, var(--card));
+  border-color: color-mix(in srgb, var(--blue) 20%, var(--border));
+}
+#messages p.other, #messages p.file {
+  justify-self: start;
+  background: color-mix(in srgb, var(--purple) 8%, var(--card));
+  border-color: color-mix(in srgb, var(--purple) 20%, var(--border));
+}
+
+/* Inline file preview bar after selecting a file */
+.file-preview-box {
+  background: color-mix(in srgb, var(--blue) 8%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--blue) 25%, var(--border));
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+
+/* Tables inside cards (dark-mode friendly) */
+:root[data-theme="dark"] .card .table,
+:root[data-theme="dark"] .card .tablehead {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  color: var(--text) !important;
+}
+
+/* Small screens */
+@media (max-width: 720px) {
+  #root { padding: 16px; }
+  .message-box { max-height: 58vh; }
+  #messages p { max-width: 88%; }
+  .rooms { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}

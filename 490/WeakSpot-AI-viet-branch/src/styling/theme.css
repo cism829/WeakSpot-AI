@@ -1,0 +1,39 @@
+:root{
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+
+  --blue: #3b82f6;
+  --blue-soft: #e8f1ff;
+
+  --green: #10b981;
+  --green-soft: #e9fdf5;
+
+  --purple: #8b5cf6;
+  --purple-soft: #f1e9ff;
+
+  --danger: #ef4444;
+  --ok: #22c55e;
+
+  --radius: 12px;
+  --shadow: 0 6px 18px rgba(16,24,40,0.08);
+}
+
+:root[data-theme="dark"]{
+  --bg: #0f172a;         /* slate-900 */
+  --card: #0b1224;       /* deep panel */
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --border: #1f2a44;
+
+  --blue-soft: #0b2a55;
+  --green-soft: #0f2f28;
+  --purple-soft: #251a42;
+
+  --shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+
+/* smooth theme transition */
+html, body { transition: background-color .25s ease, color .25s ease; }

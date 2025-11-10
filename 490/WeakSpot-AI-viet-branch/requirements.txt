@@ -1,0 +1,17 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+SQLAlchemy==2.0.34
+psycopg[binary]==3.2.9
+python-dotenv==1.0.1
+pydantic[email]==2.9.2
+passlib[bcrypt]==1.7.4
+python-jose==3.3.0
+bcrypt==4.0.1
+google-genai >= 1.40,<2.0
+pydantic-settings>=2.6.1
+python-multipart 
+spacy
+pgvector
+openai
+pillow
+opencv-python-headless==4.10.0.84
