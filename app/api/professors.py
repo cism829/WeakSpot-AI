@@ -171,3 +171,42 @@ def request_professor(
         preferred_time=c.preferred_time,
         status=c.status,
     )
+    
+@router.post("", response_model=ProfessorOut)
+def upsert_professor(
+    payload: ProfessorUpsert,                # ✅ all fields optional
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    p = db.query(Professor).filter(Professor.user_id == current_user.id).first()
+
+    # normalize courses to list[str]
+    courses_list = payload.courses or []
+    # normalize office_hours to list[dict] (handles Pydantic v1/v2 objects or plain dicts)
+    oh_list = []
+    for oh in (payload.office_hours or []):
+        if hasattr(oh, "model_dump"):     # Pydantic v2
+            oh_list.append(oh.model_dump())
+        elif hasattr(oh, "dict"):         # Pydantic v1
+            oh_list.append(oh.dict())
+        else:
+            oh_list.append(dict(oh))
+
+    data = {
+        "department": (payload.department or "").strip(),
+        "bio": (payload.bio or "").strip(),
+        "courses": json.dumps(courses_list),
+        "office_hours": json.dumps(oh_list),
+        "rating": float(payload.rating or 0.0),
+    }
+
+    if p:
+        for k, v in data.items():
+            setattr(p, k, v)
+    else:
+        p = Professor(user_id=current_user.id, **data)
+        db.add(p)
+
+    db.commit()
+    db.refresh(p)
+    return serialize_prof_row(p)

@@ -32,6 +32,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/professor/classes", label: "My Classes" },
     { to: "/professor/materials", label: "Materials" },
     { to: "/professor/students", label: "Students" },
+    { to: "/studygroups", label: "Study Groups" },
     { to: "/professor/announcements", label: "Announcements" },
     { to: "/professor/requests", label: "Requests" },
 
@@ -42,7 +43,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/tutor/dashboard", label: "Dashboard" },
     { to: "/tutor/students", label: "My Students" },
     { to: "/tutor/schedule", label: "Schedule" },
-    { to: "/tutor/messages", label: "Messages" },
+    { to: "/studygroups", label: "Study Groups" },
     { to: "/tutor/resources", label: "Resources" },
     { to: "/tutor/requests", label: "Requests" },                  
 

@@ -96,7 +96,8 @@ export const listMyQuizzes = () => req("/quizzes/mine");
 export const startPractice = (id) => req(`/quizzes/${id}/start`, { method: "POST" });
 export const gradeQuiz = (quizId, payload, token) =>
   req(`/quizzes/${quizId}/grade`, { method: "POST", body: payload, token });
-
+export const deleteQuiz = (quizId, token) =>
+  req(`/quizzes/delete/${quizId}`, { method: "DELETE", token });
 // Reviews
 export const getBestReview = (quizId, token) =>
   req(`/quizzes/${quizId}/best`, { method: "GET", token });

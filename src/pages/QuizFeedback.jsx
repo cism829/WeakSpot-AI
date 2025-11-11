@@ -114,59 +114,120 @@ export default function QuizFeedback() {
             return NaN;
         };
 
+        const letter = (n) => (Number.isInteger(n) && n >= 0 ? String.fromCharCode(65 + n) : "");
+
+        const mapIndexToLabeledText = (idx, choices) => {
+            if (!Array.isArray(choices)) return "";
+            const n = toNumber(idx);
+            if (Number.isNaN(n) || n < 0 || n >= choices.length) return "";
+            const txt = choiceToText(choices[n]);
+            // e.g., "A. Newton's First Law"
+            return `${letter(n)}. ${txt}`;
+        };
+
+        const mapArrayIndicesToText = (arr, choices) => {
+            if (!Array.isArray(arr)) return "";
+            return arr
+                .map((v) => {
+                    // support mixtures like [2,"3"]
+                    const n = toNumber(v);
+                    if (!Number.isNaN(n)) return mapIndexToLabeledText(n, choices);
+                    // already text
+                    return String(v);
+                })
+                .filter(Boolean)
+                .join(", ");
+        };
+
         const normalize = (r) => {
             const q = r.q ?? r.question ?? "";
-            const choices = Array.isArray(r.choices) ? r.choices
-                : Array.isArray(r.options) ? r.options
-                    : null;
+            const choices =
+                Array.isArray(r.choices) ? r.choices
+                    : Array.isArray(r.options) ? r.options
+                        : null;
 
-            // Gather possible user answer fields
+            // ---------- YOUR ANSWER ----------
+            // Possible fields that may carry the user's answer (text or index)
             let your = r.your ?? r.user_answer ?? r.userAnswer ?? r.answer ?? r.yourAnswer ?? "";
-            // Also consider explicit index fields
-            const idxCandidates = [
+            const yourIdxCandidates = [
                 r.choice_index,
-                r.answer_index,   // sometimes client echoes index
+                r.answer_index, // sometimes echoed back
                 r.your_index,
                 r.user_index,
             ].filter((x) => x !== undefined && x !== null);
 
-            // If "your" is boolean, show as True/False
+            // Normalize boolean to "True"/"False"
             if (typeof your === "boolean") your = your ? "True" : "False";
 
-            // If "your" is still empty but we have an index candidate, use it
-            if ((!your || your === "") && idxCandidates.length && choices) {
-                const n = toNumber(idxCandidates[0]);
-                if (!Number.isNaN(n) && n >= 0 && n < choices.length) {
-                    your = choiceToText(choices[n]);
-                }
+            // If we have no explicit text but have an index, map to labeled text
+            if ((!your || your === "") && yourIdxCandidates.length && choices) {
+                your = mapIndexToLabeledText(yourIdxCandidates[0], choices);
             }
 
-            // If "your" looks like a number and we have choices, map index->text
+            // If "your" looks numeric and we do have choices, map index -> labeled text
             if (choices && your !== "" && !Array.isArray(your)) {
                 const n = toNumber(your);
-                if (!Number.isNaN(n) && n >= 0 && n < choices.length) {
-                    your = choiceToText(choices[n]);
+                if (!Number.isNaN(n)) {
+                    your = mapIndexToLabeledText(n, choices);
                 }
             }
 
-            // If "your" is an array (multi-select), join for display
+            // If multi-select: array of indices or texts
             if (Array.isArray(your)) {
-                your = your.map(choiceToText).join(", ");
+                your = mapArrayIndicesToText(your, choices);
             }
 
-            const correctAns =
-                r.correctAns ?? r.correct_text ?? r.correct ?? r.answer_text ?? "";
+            // ---------- CORRECT ANSWER ----------
+            // Many backends use different keys for the correct value
+            let correctAns =
+                r.correctAns ??
+                r.correct_text ??
+                r.correct ??
+                r.answer_text ??
+                r.correctAnswer ??
+                "";
+
+            const correctIdxCandidates = [
+                r.correct_index,
+                r.answer_index,          // some APIs reuse this name for "correct"
+                r.correct_choice,
+                r.correctChoiceIndex,
+            ].filter((x) => x !== undefined && x !== null);
+
+            // Normalize boolean to "True"/"False"
+            if (typeof correctAns === "boolean") correctAns = correctAns ? "True" : "False";
+
+            // If correct text missing but we have an index, map it
+            if ((!correctAns || correctAns === "") && correctIdxCandidates.length && choices) {
+                correctAns = mapIndexToLabeledText(correctIdxCandidates[0], choices);
+            }
+
+            // If correct looks numeric and we have choices, map to labeled text
+            if (choices && correctAns !== "" && !Array.isArray(correctAns)) {
+                const n = toNumber(correctAns);
+                if (!Number.isNaN(n)) {
+                    correctAns = mapIndexToLabeledText(n, choices);
+                }
+            }
+
+            // If correct is an array (multi select), map each
+            if (Array.isArray(correctAns)) {
+                correctAns = mapArrayIndicesToText(correctAns, choices);
+            }
 
             const why = r.why ?? r.explanation ?? "";
-
             const correct =
-                typeof r.correct === "boolean"
-                    ? r.correct
-                    : typeof r.is_correct === "boolean"
-                        ? r.is_correct
+                typeof r.correct === "boolean" ? r.correct
+                    : typeof r.is_correct === "boolean" ? r.is_correct
                         : null;
 
-            return { q, your: String(your ?? ""), correctAns: String(correctAns ?? ""), why: String(why ?? ""), correct };
+            return {
+                q,
+                your: String(your ?? ""),
+                correctAns: String(correctAns ?? ""),
+                why: String(why ?? ""),
+                correct,
+            };
         };
 
         return src.map(normalize);

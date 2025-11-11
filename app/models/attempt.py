@@ -13,4 +13,4 @@ class Attempt(Base):
         Index("ix_attempts_user_quiz_time", "user_id", "quiz_id", "started_at"),
     )
 
-    quiz = relationship("Quiz")
+    quiz = relationship("Quiz", back_populates="attempts")

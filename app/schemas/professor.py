@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from pydantic.networks import EmailStr
 
@@ -41,3 +41,4 @@ class ProfessorSearchIn(BaseModel):
     dept: Optional[str] = None
     page: Optional[int] = None
     page_size: Optional[int] = None
+    

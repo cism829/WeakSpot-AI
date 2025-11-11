@@ -28,7 +28,7 @@ from app.schemas.quiz_gen import (
 from app.schemas.quiz import QuizItems  # Pydantic schema for structured output
 
 from pydantic import BaseModel
-
+from datetime import datetime, timezone
 router = APIRouter(prefix="/quizzes", tags=["quizzes"])
 
 # ---------- OpenAI helpers ----------
@@ -413,6 +413,19 @@ def _persist_quiz_and_items(
     return q.id
 
 # ---------- Endpoints ----------
+@router.delete("/delete/{quiz_id}", status_code=204)
+def delete_quiz(
+    quiz_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    q = (db.query(Quiz)
+        .filter(Quiz.id == quiz_id, Quiz.user_id == current_user.id)
+        .first())
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    db.delete(q); db.commit(); return
 
 @router.post("/generate-ai")
 def generate_ai(
