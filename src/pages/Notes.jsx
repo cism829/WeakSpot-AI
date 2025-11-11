@@ -4,6 +4,7 @@ import { useAuth } from "../context/Authcontext";
 import { listMyNotes, createNote, deleteNote } from "../lib/api";
 import { ocrRepairSuggest, ocrZipUpload } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import JSZip from "jszip";
 
 function Row({ label, value }) {
   return (
@@ -24,10 +25,10 @@ export default function Notes() {
   const [err, setErr] = useState("");
   const [text, setText] = useState("");
 
-  const [zipFile, setZipFile] = useState(null);
-  const [zipBusy, setZipBusy] = useState(false);
-  const [zipErr, setZipErr] = useState("");
-  const [zipRes, setZipRes] = useState(null);
+  const [selFiles, setSelFiles] = useState([]);
+  const [upBusy, setUpBusy] = useState(false);
+  const [upErr, setUpErr] = useState("");
+  const [upRes, setUpRes] = useState(null);
 
   async function refresh() {
     try {
@@ -41,24 +42,98 @@ export default function Notes() {
 
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // on mount
 
-  async function handleZipUpload() {
-    if (!zipFile) {
-      setZipErr("Choose a .zip of images first.");
+  async function buildZipFromImages(images) {
+    const zip = new JSZip();
+    let idx = 1;
+    for (const f of images) {
+      const arrayBuf = await f.arrayBuffer();
+      const name =
+        (f.name && f.name.replace(/[\\/:*?"<>|]/g, "_")) || `image_${String(idx).padStart(3, "0")}.png`;
+      zip.file(name, arrayBuf);
+      idx += 1;
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    return new File([blob], "images.zip", { type: "application/zip" });
+  }
+
+  async function handleMixedUpload() {
+    if (!selFiles || selFiles.length === 0) {
+      setUpErr("Choose a .zip and/or image files first.");
       return;
     }
-    setZipBusy(true);
-    setZipErr("");
-    setZipRes(null);
+    setUpBusy(true);
+    setUpErr("");
+    setUpRes(null);
+
+    const created = [];
+    const failures = [];
+    let processed = 0;
+
     try {
-      const out = await ocrZipUpload(zipFile, token); 
-      setZipRes(out);
-      await refresh(); 
+      const zips = [];
+      const images = [];
+      for (const f of selFiles) {
+        const name = f?.name || "";
+        const type = f?.type || "";
+        if (type === "application/zip" || /\.zip$/i.test(name)) zips.push(f);
+        else if ((type && type.startsWith("image/")) || /\.(png|jpe?g|tiff?)$/i.test(name)) images.push(f);
+        else failures.push({ file: name || "(unknown)", error: "Unsupported file type" });
+      }
+
+      // send .zip directly
+      for (const z of zips) {
+        try {
+          const out = await ocrZipUpload(z, token);
+          processed += out?.processed ?? 0;
+          if (Array.isArray(out?.created)) {
+            for (const c of out.created) {
+              created.push({
+                note_id: c.note_id || c.id || c.noteId || null,
+                repair_id: c.repair_id || null,
+                source: "zip",
+              });
+            }
+          }
+          if (Array.isArray(out?.failures)) {
+            failures.push(...out.failures.map(x => ({ file: x.file, error: x.error })));
+          }
+        } catch (e) {
+          failures.push({ file: z.name, error: e?.detail || e?.message || "Upload failed" });
+        }
+      }
+
+      // if images, bundle to zip
+      if (images.length > 0) {
+        try {
+          const zipFile = await buildZipFromImages(images);
+          const out = await ocrZipUpload(zipFile, token);
+          processed += out?.processed ?? images.length;
+          if (Array.isArray(out?.created)) {
+            for (const c of out.created) {
+              created.push({
+                note_id: c.note_id || c.id || c.noteId || null,
+                repair_id: c.repair_id || null,
+                source: "image upload",
+              });
+            }
+          }
+          if (Array.isArray(out?.failures)) {
+            failures.push(...out.failures.map(x => ({ file: x.file, error: x.error })));
+          }
+        } catch (e) {
+          failures.push({ file: "(images bundle)", error: e?.detail || e?.message || "OCR zip upload failed" });
+        }
+      }
+
+      setUpRes({ processed, created, failures });
+      await refresh();
     } catch (e) {
-      setZipErr(e?.detail || e?.message || "Upload failed.");
+      setUpErr(e?.detail || e?.message || "Upload failed.");
     } finally {
-      setZipBusy(false);
+      setUpBusy(false);
     }
   }
 
@@ -89,7 +164,7 @@ export default function Notes() {
 
   async function handleRepair(noteId) {
     try {
-      const out = await ocrRepairSuggest(noteId, token); 
+      const out = await ocrRepairSuggest(noteId, token);
       if (out?.repair_id) {
         nav(`/notes/repair/${out.repair_id}`);
       } else {
@@ -106,55 +181,54 @@ export default function Notes() {
       {err && <div className="alert alert--error">{String(err)}</div>}
 
       <div className="grid grid--2">
-        <Card title="Upload .zip of images (OCR)" tone="blue">
+        <Card title="Upload notes (ZIP or images)" tone="blue">
           <input
             type="file"
-            accept=".zip"
-            onChange={(e) => setZipFile(e.target.files?.[0] || null)}
+            accept=".zip,image/*"
+            multiple
+            onChange={(e) => setSelFiles(Array.from(e.target.files || []))}
           />
           <div className="row" style={{ marginTop: 12, gap: 8 }}>
             <button
               className="btn btn--primary"
-              onClick={handleZipUpload}
-              disabled={zipBusy || !zipFile}
+              onClick={handleMixedUpload}
+              disabled={upBusy || !selFiles.length}
             >
-              {zipBusy ? "Processing…" : "Run OCR"}
+              {upBusy ? "Processing…" : "Upload & Process (OCR)"}
             </button>
             <div className="muted">
-              Each image becomes a new Note; chunks & embeddings are created automatically.
+              {selFiles.length} file(s) selected
             </div>
           </div>
-          {zipErr && <div className="alert alert--error" style={{ marginTop: 12 }}>{zipErr}</div>}
-          {zipRes && (
+
+          {upErr && <div className="alert alert--error" style={{ marginTop: 12 }}>{upErr}</div>}
+
+          {upRes && (
             <Card title="Result" tone="green" style={{ marginTop: 16 }}>
-              <Row label="Images processed" value={zipRes.processed} />
-              <Row label="Created (records)" value={zipRes.created?.length ?? 0} />
-              {Array.isArray(zipRes.created) && zipRes.created.length > 0 && (
+              <Row label="Files processed" value={upRes.processed} />
+              <Row label="Created (records)" value={upRes.created?.length ?? 0} />
+              {Array.isArray(upRes.created) && upRes.created.length > 0 && (
                 <div style={{ marginTop: 10 }}>
                   <div className="muted" style={{ marginBottom: 6 }}>New notes:</div>
                   <ul className="list">
-                    {zipRes.created.map((c, i) => (
+                    {upRes.created.map((c, i) => (
                       <li key={i} className="list__row">
-                        <span>
-                          note_id: <code>{c.note_id}</code>
-                        </span>
+                        <span>note_id: <code>{c.note_id}</code></span>
                         {c.repair_id ? (
-                          <span className="muted">
-                            {" "}
-                            — repair suggested: <code>{c.repair_id}</code> (open in Repair page)
-                          </span>
+                          <span className="muted"> — repair suggested: <code>{c.repair_id}</code></span>
                         ) : null}
+                        <span className="muted"> ({c.source})</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
-              {Array.isArray(zipRes.failures) && zipRes.failures.length > 0 && (
+              {Array.isArray(upRes.failures) && upRes.failures.length > 0 && (
                 <div style={{ marginTop: 12 }}>
                   <div className="alert alert--error">
-                    {zipRes.failures.length} file(s) failed:
+                    {upRes.failures.length} file(s) failed:
                     <ul className="list">
-                      {zipRes.failures.map((f, i) => (
+                      {upRes.failures.map((f, i) => (
                         <li key={i}>
                           <strong>{f.file}</strong>: {f.error}
                         </li>
@@ -199,11 +273,10 @@ export default function Notes() {
                   <button className="btn btn--sm" onClick={() => nav(`/notes-analysis/${n.id}`)}>
                     Analyze
                   </button>
-                  {/* Repair OCR */}
                   <button className="btn btn--sm" onClick={() => handleRepair(n.id)}>
                     Repair OCR
                   </button>
-                  <button className="btn btn--sm btn--ghost" onClick={() => handleDelete(n.id)}>
+                  <button className="btn btn--sm" onClick={() => handleDelete(n.id)}>
                     Delete
                   </button>
                 </div>
