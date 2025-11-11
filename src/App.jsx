@@ -43,7 +43,6 @@ import TutorStudents from "./pages/tutor/TutorStudents";
 import TutorResources from "./pages/tutor/TutorResources";
 import ProfessorRequests from "./pages/professor/ProfessorRequests";
 import TutorRequests from "./pages/tutor/TutorRequests";
-import NotesOCRZip from "./pages/NotesOCRZIP";
 import NoteRepair from "./pages/NoteRepair";
 import NoteChunks from "./pages/NoteChunks";
 // Protected Route wrapper
@@ -114,7 +113,6 @@ function App() {
                 <Route path="/students/tutors" element={<PrivateRoute><StudentConnectTutors /></PrivateRoute>} />
                 <Route path="/students/professors" element={<PrivateRoute><StudentConnectProfessors /></PrivateRoute>} />
                 <Route path="/students/requests" element={<PrivateRoute><StudentRequests /></PrivateRoute>} /> {/* NEW */}
-                <Route path="/notes/ocr-zip" element={<PrivateRoute><NotesOCRZip /></PrivateRoute>} />
                 <Route path="/notes/repair/:repairId" element={<PrivateRoute><NoteRepair /></PrivateRoute>} />
                 <Route path="/notes/chunks" element={<PrivateRoute><NoteChunks /></PrivateRoute>} />
               </Routes>
