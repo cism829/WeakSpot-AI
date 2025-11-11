@@ -13,12 +13,40 @@ class Note(Base):
 
     # Relationship
     user = relationship("User", back_populates="notes")
-    quizzes = relationship("Quiz", back_populates="note", cascade="all, delete-orphan")
+
+    quizzes = relationship(
+        "Quiz", 
+        back_populates="note", 
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+    
     flashcards = relationship(
         "Flashcard",
-        back_populates="note"
-    )
-    chunks = relationship("NoteChunk", back_populates="note")
-    analyses = relationship("NoteAnalysis", back_populates="note")
-    repairs = relationship("NoteRepair", back_populates="note")
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+
+    chunks = relationship(
+        "NoteChunk", 
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
     
+
+    repairs = relationship(
+        "NoteRepair", 
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+    
+    analyses = relationship(
+        "NoteAnalysis", 
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+
