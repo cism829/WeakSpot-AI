@@ -50,12 +50,14 @@ def suggest(note_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="note has no text")
 
     result = suggest_repair_for_text(note.og_text)
+    suggested = result.get("suggested_text") or note.og_text
+    status = "pending" if result.get("suggested_text") is not None else "noop"
     rep = NoteRepair(
         note_id=note.note_id,
         original_text=note.og_text,
-        suggested_text=result.get("suggested_text"),
+        suggested_text=suggested,
         suggestion_log=result.get("log", []),
-        status="pending",
+        status= status,
     )
     db.add(rep)
     db.flush()

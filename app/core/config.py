@@ -37,8 +37,6 @@ class Settings(BaseModel):
 
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     CORS_ORIGINS: list[str] = parse_cors(
         os.getenv("CORS_ORIGINS"),

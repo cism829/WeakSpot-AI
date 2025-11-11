@@ -129,7 +129,7 @@ export default function Notes() {
                                     <button className="btn btn--sm" onClick={() => handleRepair(n.id)}>
                                         Repair OCR
                                     </button>
-                                    <button className="btn btn--sm btn--ghost" onClick={() => handleDelete(n.id)}>
+                                    <button className="btn btn--sm" onClick={() => handleDelete(n.id)}>
                                         Delete
                                     </button>
                                 </div>

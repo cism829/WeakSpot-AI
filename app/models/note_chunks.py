@@ -18,7 +18,7 @@ class NoteChunk(Base):
     note_id = Column(
         UUID(as_uuid=True),
         ForeignKey("notes.note_id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
 

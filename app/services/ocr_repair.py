@@ -68,7 +68,10 @@ Return STRICT JSON:
 def suggest_repair_for_text(text: str, subject: Optional[str] = None) -> Dict[str, Any]:
     sents = sentences(text)
     if not any(has_ocr_gap(s) for s in sents):
-        return {"suggested_text": None, "log": []}
+        return {
+            "suggested_text": text,                 
+            "log": [{"info": "no_gaps_detected"}],  
+        }
 
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     repaired_sents: List[str] = []

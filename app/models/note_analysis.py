@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 class NoteAnalysis(Base):
     __tablename__ = "note_analysis"
     analysis_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    note_id     = Column(UUID(as_uuid=True), ForeignKey("notes.note_id", ondelete="CASCADE"), index=True, nullable=False)
+    note_id     = Column(UUID(as_uuid=True), ForeignKey("notes.note_id", ondelete="CASCADE"), index=True, nullable=True)
 
     subject = Column(String(128), nullable=True)
     summary = Column(Text, nullable=True)

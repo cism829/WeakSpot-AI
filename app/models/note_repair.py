@@ -7,7 +7,7 @@ from app.models.base import Base
 class NoteRepair(Base):
     __tablename__ = "note_repairs"
     repair_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    note_id   = Column(UUID(as_uuid=True), ForeignKey("notes.note_id", ondelete="CASCADE"), index=True, nullable=False)
+    note_id   = Column(UUID(as_uuid=True), ForeignKey("notes.note_id", ondelete="CASCADE"), index=True, nullable=True)
 
     # snapshot & suggestion
     original_text  = Column(Text, nullable=False)
