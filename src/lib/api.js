@@ -96,8 +96,7 @@ export const listMyQuizzes = () => req("/quizzes/mine");
 export const startPractice = (id) => req(`/quizzes/${id}/start`, { method: "POST" });
 export const gradeQuiz = (quizId, payload, token) =>
   req(`/quizzes/${quizId}/grade`, { method: "POST", body: payload, token });
-export const deleteQuiz = (quizId, token) =>
-  req(`/quizzes/delete/${quizId}`, { method: "DELETE", token });
+
 // Reviews
 export const getBestReview = (quizId, token) =>
   req(`/quizzes/${quizId}/best`, { method: "GET", token });
@@ -224,12 +223,23 @@ export const uploadNoteFile = (file, token) => {
 
 export const deleteNote = (id, token) => req(`/notes/${id}`, { method: "DELETE", token });
 
+export const semanticSearchNotes = (payload, token, userId) => {
+  const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+  return req(`/search${qs}`, {
+    method: "POST",
+    body: payload,    
+    token,
+  });
+};
+
 export const analyzeNote = (id, token, subject) => {
   const qs = subject ? `?subject=${encodeURIComponent(subject)}` : "";
   return req(`/analysis/${id}${qs}`, { method: "POST", token });
 };
 
 export const getLatestAnalysis = (id, token) => req(`/analysis/${id}/latest`, { token });
+
+
 
 export async function ocrZipUpload(file, token) {
   const fd = new FormData();
