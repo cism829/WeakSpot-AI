@@ -11,3 +11,9 @@ rq==1.16.2
 bcrypt==4.0.1
 google-genai >= 1.40,<2.0
 pydantic-settings>=2.6.1
+python-multipart 
+spacy
+pgvector
+openai
+pillow
+opencv-python-headless==4.10.0.84

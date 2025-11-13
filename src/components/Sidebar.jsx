@@ -7,14 +7,19 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
   if (!isLoggedIn) return null;
 
   const StudentLinks = [
+    { to: "/students/tutors", label: "Find Tutors" },
+    { to: "/students/professors", label: "Connect Professors" },
+    { to: "/students/requests", label: "My Requests" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/notes", label: "Notes" },
+    { to: "/notes-analysis", label: "Notes Analysis" },
+    { to: "/notes/ocr-zip", label: "OCR from ZIP" },
     { to: "/flashcards", label: "Flashcards" },
     { to: "/progress", label: "Progress" },
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/studygroups", label: "Study Groups" },
-    { to: "/notes-analysis", label: "Notes Analysis" },
-    { to: "/quiz", label: "Quiz" },
+    { to: "/generate-quiz", label: "Generate Quiz" },
+    { to: "/quiz", label: "My Quizzes" },
     { to: "/exam", label: "Exam" },
     { to: "/quiz-feedback", label: "Quiz Feedback" },
     { to: "/profile", label: "Profile" },
@@ -26,7 +31,14 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/professor/classes", label: "My Classes" },
     { to: "/professor/materials", label: "Materials" },
     { to: "/professor/students", label: "Students" },
+    { to: "/studygroups", label: "Study Groups" },
     { to: "/professor/announcements", label: "Announcements" },
+    { to: "/professor/requests", label: "Requests" },
+    { to: "/flashcards", label: "Flashcards" },
+    { to: "/generate-quiz", label: "Generate Quiz" },
+    { to: "/quiz", label: "My Quizzes" },
+    { to: "/exam", label: "Exam" },
+    { to: "/quiz-feedback", label: "Quiz Feedback" },
     { to: "/professor/profile", label: "Profile" },
   ];
 
@@ -34,15 +46,21 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/tutor/dashboard", label: "Dashboard" },
     { to: "/tutor/students", label: "My Students" },
     { to: "/tutor/schedule", label: "Schedule" },
-    { to: "/tutor/messages", label: "Messages" },
+    { to: "/studygroups", label: "Study Groups" },
     { to: "/tutor/resources", label: "Resources" },
+    { to: "/tutor/requests", label: "Requests" },
+    { to: "/flashcards", label: "Flashcards"}, 
+    { to: "/generate-quiz", label: "Generate Quiz" },
+    { to: "/quiz", label: "My Quizzes" },
+    { to: "/exam", label: "Exam" },
+    { to: "/quiz-feedback", label: "Quiz Feedback" },
     { to: "/tutor/profile", label: "Profile" },
   ];
 
   const links =
-    user?.role === "Professor"
+    user?.role === "professor"
       ? ProfessorLinks
-      : user?.role === "Tutor"
+      : user?.role === "tutor"
         ? TutorLinks
         : StudentLinks;
 

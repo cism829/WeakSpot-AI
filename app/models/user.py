@@ -17,9 +17,21 @@ class User(Base):
     coins_balance = Column(Integer, default=0)
     total_points = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    grade_level = Column(String(32), nullable=True)  # validated in schema
+
     
     # Relationship
     quizzes = relationship("Quiz", back_populates="user", cascade="all, delete-orphan")
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
     results = relationship("Result", back_populates="user", cascade="all, delete-orphan")
+    flashcards = relationship(
+        "Flashcard",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    file = relationship("File", back_populates="user", cascade="all, delete-orphan")
+    messages = relationship("Messages", back_populates="user", cascade="all, delete-orphan")
+    room_infos = relationship("RoomInfo", back_populates="user", cascade="all, delete-orphan")
+    tutors = relationship("Tutor", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    professors = relationship("Professor", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    connection_requests = relationship("ConnectionRequest", back_populates="user", cascade="all, delete-orphan")

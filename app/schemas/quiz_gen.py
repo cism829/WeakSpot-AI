@@ -1,11 +1,15 @@
 from typing import List, Optional, Literal
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 QuizType = Literal["mcq", "short_answer", "fill_blank", "true_false"]
 
 class GenerateBase(BaseModel):
-    user_id: int = 1
+    # Not used by the endpoint (we use get_current_user), so keep optional
+    user_id: Optional[UUID] = None
     subject: str = "general"
+    topic: str = ""
+    grade_level: str
     difficulty: Literal["easy", "medium", "hard"] = "medium"
     mode: Literal["practice", "exam"] = "practice"
     num_items: int = Field(10, ge=1, le=50)
@@ -15,7 +19,8 @@ class GenerateWithoutNote(GenerateBase):
     pass
 
 class GenerateWithNote(GenerateBase):
-    note_text: str
+    # ✅ use UUID instead of note_text/int
+    note_id: UUID
 
 class QuizItemOut(BaseModel):
     id: int

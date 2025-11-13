@@ -9,6 +9,8 @@ from app.core.config import settings
 from app.core.db import get_db
 from app.models.user import User
 from typing import Annotated, Optional
+import secrets, string
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
@@ -61,3 +63,10 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+def make_backup_codes(n=10) -> list[str]:
+    abc = string.ascii_uppercase + string.digits
+    return ["".join(secrets.choice(abc) for _ in range(10)) for _ in range(n)]
+
+def hash_list(codes: list[str]) -> list[str]:
+    return [pwd_context.hash(c) for c in codes]
