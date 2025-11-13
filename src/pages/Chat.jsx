@@ -134,6 +134,9 @@ export default function Chat() {
 
   return (
     <div className="chat-container">
+        <h2>
+        Your Name: <span id="ws-id">{user?.first_name || "(not signed in)"}</span>
+      </h2>
       <h2>{roomName}</h2>
 
       <div className="message-box">
