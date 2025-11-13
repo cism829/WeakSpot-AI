@@ -15,7 +15,7 @@ export default function Chat() {
 
   // Prefer UUID on user.id; add fallbacks if your auth shape varies
   const clientId = user?.id ?? user?.userId ?? user?.user?.id ?? "";
-
+  const [roomName, setRoomName] = useState("");
   const [roomsMessages, setRoomsMessages] = useState({});
   const [input, setInput] = useState("");
   const [connected, setConnected] = useState(false);
@@ -23,6 +23,14 @@ export default function Chat() {
   const ws = useRef(null);
 
   const messages = room && roomsMessages[room] ? roomsMessages[room] : [];
+
+  useEffect(() => {
+    if (!room) return;
+    fetch(`http://localhost:8000/rooms/${room}`)
+      .then((res) => res.json())
+      .then((data) => setRoomName(data.room_name))
+      .catch(() => setRoomName(room)); // fallback if fetch fails
+  }, [room]);
 
   useEffect(() => {
     if (!room || !clientId) return;
@@ -124,10 +132,7 @@ export default function Chat() {
 
   return (
     <div className="chat-container">
-      <h2>
-        Your ID: <span id="ws-id">{clientId || "(not signed in)"}</span>
-      </h2>
-      <h2>Current Room: {room}</h2>
+      <h2>{roomName || room}</h2>
 
       <div className="message-box">
         <div id="messages">

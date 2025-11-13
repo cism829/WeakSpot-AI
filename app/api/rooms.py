@@ -35,6 +35,21 @@ def list_rooms(
         }
         for r in rows
     ]
+
+@router.get("/rooms/{id}")
+def get_room(id: int, db: Session = Depends(get_db)):
+    room = db.query(Rooms).filter(Rooms.room_id == id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    return {
+        "room_id": room.room_id,
+        "room_name": room.room_name,
+        "room_subject": room.room_subject,
+        "description": room.description,
+        "is_private": room.is_private,
+    }
+
     
 @router.post("/rooms")
 def create_room(
