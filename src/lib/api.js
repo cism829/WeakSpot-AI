@@ -52,6 +52,8 @@ export const authLogout = () => req("/auth/logout", { method: "POST" });
 // ------------------------------------------------------------
 // Quizzes (OpenAI generators)
 // ------------------------------------------------------------
+export const deleteQuiz = (quizId, token) =>
+  req(`/quizzes/delete/${quizId}`, { method: "DELETE", token });
 
 // Generate WITHOUT note
 export const quizzesGenerateAI = (
