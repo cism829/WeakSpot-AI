@@ -20,6 +20,7 @@ def _note_out(n: Note, last_analysis: Optional[NoteAnalysis] = None) -> dict:
         "status": n.status,
         "created_at": n.created_at.isoformat() if getattr(n, "created_at", None) else None,
         "preview_text": preview,
+        "filename": n.filename,
     }
     if last_analysis:
         out["last_analysis"] = {
@@ -47,7 +48,10 @@ def list_my_notes(db: Session = Depends(get_db), user: User = Depends(get_curren
             .order_by(desc(NoteAnalysis.created_at))
             .first()
         )
-        out.append(_note_out(n, last))
+
+        item = _note_out(n, last)
+        item["has_ocr_repair"] = bool(getattr(n, "repairs", []))
+        out.append(item)
     return out
 
 @router.get("/{note_id}", summary="Get a single note (with text)")
@@ -97,10 +101,9 @@ async def upload_note_file(
         except Exception:
             text = raw.decode("latin-1", errors="ignore")
     else:
-        # Could wire to OCR pipeline later
         text = None
 
-    n = Note(user_id=user.id, og_text=text, status="uploaded")
+    n = Note(user_id=user.id, og_text=text, filename=file.filename, status="uploaded")
     db.add(n); db.commit(); db.refresh(n)
     return _note_out(n)
 

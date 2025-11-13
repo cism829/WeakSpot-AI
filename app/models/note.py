@@ -1,4 +1,3 @@
-
 from sqlalchemy import Column, text, Integer, ForeignKey, String, Text, DateTime, func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
@@ -8,17 +7,46 @@ class Note(Base):
     note_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     og_text = Column(Text, nullable=True)
+    filename = Column(String(255), nullable=True) 
     status = Column(String(50), default="uploaded")  # uploaded -> ocr_done -> analyzed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship
     user = relationship("User", back_populates="notes")
-    quizzes = relationship("Quiz", back_populates="note", cascade="all, delete-orphan")
+
+    quizzes = relationship(
+        "Quiz", 
+        back_populates="note", 
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+    
     flashcards = relationship(
         "Flashcard",
-        back_populates="note"
-    )
-    chunks = relationship("NoteChunk", back_populates="note")
-    analyses = relationship("NoteAnalysis", back_populates="note")
-    repairs = relationship("NoteRepair", back_populates="note")
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+
+    chunks = relationship(
+        "NoteChunk", 
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
     
+
+    repairs = relationship(
+        "NoteRepair", 
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+    
+    analyses = relationship(
+        "NoteAnalysis", 
+        back_populates="note",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        )
+
