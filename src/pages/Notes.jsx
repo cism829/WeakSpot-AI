@@ -273,9 +273,11 @@ export default function Notes() {
                   <button className="btn btn--sm" onClick={() => nav(`/notes-analysis/${n.id}`)}>
                     Analyze
                   </button>
+                  {Boolean(n.has_ocr_repair) &&(
                   <button className="btn btn--sm" onClick={() => handleRepair(n.id)}>
                     Repair OCR
                   </button>
+                  )}
                   <button className="btn btn--sm" onClick={() => handleDelete(n.id)}>
                     Delete
                   </button>
