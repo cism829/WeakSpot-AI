@@ -47,7 +47,10 @@ def list_my_notes(db: Session = Depends(get_db), user: User = Depends(get_curren
             .order_by(desc(NoteAnalysis.created_at))
             .first()
         )
-        out.append(_note_out(n, last))
+
+        item = _note_out(n, last)
+        item["has_ocr_repair"] = bool(getattr(n, "repairs", []))
+        out.append(item)
     return out
 
 @router.get("/{note_id}", summary="Get a single note (with text)")
