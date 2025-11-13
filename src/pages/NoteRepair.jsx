@@ -77,7 +77,7 @@ export default function NoteRepair() {
             />
             <div className="row" style={{ gap: 8, marginTop: 8 }}>
               <button className="btn btn--primary" onClick={doApply}>Apply to Note</button>
-              <button className="btn btn--ghost" onClick={doReject}>Reject</button>
+              <button className="btn btn--primary" onClick={doReject}>Reject</button>
             </div>
           </Card>
           <Card title="Suggestion log" tone="yellow" full>
