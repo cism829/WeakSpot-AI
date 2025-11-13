@@ -17,12 +17,22 @@ export default function Chat() {
   const clientId = user?.id ?? user?.userId ?? user?.user?.id ?? "";
 
   const [roomsMessages, setRoomsMessages] = useState({});
+  const [roomName, setRoomName] = useState("");
+
   const [input, setInput] = useState("");
   const [connected, setConnected] = useState(false);
   const [file, setFile] = useState(null);
   const ws = useRef(null);
 
   const messages = room && roomsMessages[room] ? roomsMessages[room] : [];
+
+  useEffect(() => {
+    if (!room) return;
+    fetch(`http://localhost:8000/rooms/${room}`)
+      .then((res) => res.json())
+      .then((data) => setRoomName(data.room_name))
+      .catch(() => setRoomName(room)); // fallback if fetch fails
+  }, [room]);
 
   useEffect(() => {
     if (!room || !clientId) return;
@@ -124,10 +134,7 @@ export default function Chat() {
 
   return (
     <div className="chat-container">
-      <h2>
-        Your ID: <span id="ws-id">{user?.first_name || "(not signed in)"}</span>
-      </h2>
-      <h2>Current Room: {room}</h2>
+      <h2>{roomName}</h2>
 
       <div className="message-box">
         <div id="messages">
