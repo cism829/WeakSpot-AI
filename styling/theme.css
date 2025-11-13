@@ -58,7 +58,14 @@
   font-weight: bold;
 }
 
+:root[data-theme="dark"] .stat {
+  background: #1e293b !important;
+  color: var(--text) !important;
+}
 
-
+:root[data-theme="dark"] .card-btn {
+  background: #1e293b !important;
+  color: var(--text) !important;
+}
 /* smooth theme transition */
 html, body { transition: background-color .25s ease, color .25s ease; }
