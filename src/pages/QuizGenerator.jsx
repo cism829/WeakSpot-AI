@@ -180,14 +180,13 @@ export default function QuizGenerator() {
                             return (
                                 <button
                                     key={t.key}
-                                    type="button"
+                                    type="btn btn--primary"
                                     onClick={() => toggleTypeA(t.key)}
                                     className={`chip ${active ? "chip--active" : ""}`}
                                     style={{
                                         padding: "8px 12px",
                                         borderRadius: 999,
                                         border: `1px solid ${active ? "var(--accent,#5563ff)" : "var(--border,#e5e7eb)"}`,
-                                        background: active ? "rgba(85,99,255,0.08)" : "white",
                                         cursor: "pointer"
                                     }}
                                 >
@@ -247,14 +246,13 @@ export default function QuizGenerator() {
                             return (
                                 <button
                                     key={t.key}
-                                    type="button"
+                                    type="btn btn--primary"
                                     onClick={() => toggleTypeB(t.key)}
                                     className={`chip ${active ? "chip--active" : ""}`}
                                     style={{
                                         padding: "8px 12px",
                                         borderRadius: 999,
                                         border: `1px solid ${active ? "var(--accent,#5563ff)" : "var(--border,#e5e7eb)"}`,
-                                        background: active ? "rgba(85,99,255,0.08)" : "white",
                                         cursor: "pointer"
                                     }}
                                 >
