@@ -91,7 +91,7 @@ export default function Notes() {
                 <Card title="Upload notes" tone="blue">
                     <FileUploader onFiles={handleUpload} />
                     <div className="muted" style={{ marginTop: 8 }}>
-                        PDF/DOC images will be ingested; plain text files are read immediately.
+                        Plain text files are read immediately.
                     </div>
                 </Card>
                 <Card title="Or paste text" tone="green">

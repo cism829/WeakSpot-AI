@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import List, Optional
 
 class RegisterIn(BaseModel):
@@ -24,8 +24,8 @@ class AlertsIn(BaseModel):
 
 class PasswordIn(BaseModel):
     current: str
-    new: str = Field(min_length=8)
-
+    new: str = Field(min_length=8, alias="new_password")
+    model_config = ConfigDict(populate_by_name=True)
 class SecurityOut(BaseModel):
     twoFAEnabled: bool
     privacy: PrivacyIn

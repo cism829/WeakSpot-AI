@@ -32,7 +32,7 @@ export default function FileUploader({ onFiles }) {
             <div className="uploader__icon">📤</div>
             <div className="uploader__text">
                 <strong>Drop notes here</strong> or <span className="uploader__link">browse files</span><br />
-                <small>PDF, DOCX, TXT, PNG, JPG</small>
+                <small>.TXT ONLY</small>
             </div>
         </div>
     );

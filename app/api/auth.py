@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Form
 from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.security import get_password_hash, verify_password, create_access_token, get_current_user, make_backup_codes, hash_list
@@ -106,11 +106,15 @@ def update_privacy(payload: PrivacyIn, db: Session = Depends(get_db), user: User
     return {"ok": True}
 
 @router.post("/security/password")
-def change_password(payload: PasswordIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    if not verify_password(payload.current, user.password):
+def change_password(
+    current: Annotated[str, Form()],
+    new:     Annotated[str, Form()],
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not verify_password(current, user.password):
         raise HTTPException(status_code=400, detail="Current password is incorrect.")
-    user.password = get_password_hash(payload.new)
-    # optional sign-out-others: bump token_version if your model has it
+    user.password = get_password_hash(new)
     if hasattr(user, "token_version"):
         user.token_version = (user.token_version or 0) + 1
     db.add(user); db.commit()

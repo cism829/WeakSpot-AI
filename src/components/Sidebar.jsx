@@ -14,7 +14,6 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/notes", label: "Notes" },
     { to: "/notes-analysis", label: "Notes Analysis" },
     { to: "/notes/ocr-zip", label: "OCR from ZIP" },
-    { to: "/notes/chunks", label: "Chunks & Embeddings" },    
     { to: "/flashcards", label: "Flashcards" },
     { to: "/progress", label: "Progress" },
     { to: "/leaderboard", label: "Leaderboard" },
