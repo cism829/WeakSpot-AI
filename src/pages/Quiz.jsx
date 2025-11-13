@@ -271,14 +271,14 @@ function RunnerMode({ quizId, user, setUser, nav }) {
             <div className="row" style={{ alignItems: "center", marginBottom: 8 }}>
                 <h2 style={{ margin: 0, flex: 1 }}>{meta?.title}</h2>
                 <span className="pill">{meta?.difficulty || "—"}</span>
-                <button
+                {/* <button
                     className="btn btn--danger"
                     onClick={onDeleteQuiz}
                     disabled={deleting}
                     style={{ marginLeft: 8 }}
                 >
                     {deleting ? "Deleting…" : "Delete"}
-                </button>
+                </button> */}
             </div>
 
             {/* Slim progress line and counter */}
