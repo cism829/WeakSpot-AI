@@ -56,7 +56,7 @@ Strict requirements:
 
 Return STRICT JSON:
 {{
-  "repaired": "<current sentence with replacements>",
+  "repaired": "<FULL REPAIRED TEXT, including all unchanged parts>",
   "fills": [
     {{"placeholder":"(?)","replacement":"<words>","confidence":0.0}},
     {{"placeholder":"...","replacement":"<words>","confidence":0.0}}
