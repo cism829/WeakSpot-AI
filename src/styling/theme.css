@@ -35,5 +35,32 @@
   --shadow: 0 6px 18px rgba(0,0,0,0.35);
 }
 
+:root[data-theme="dark"] .card .table {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  color: var(--text) !important;
+}
+
+:root[data-theme="dark"] .card .table__head {
+  background: #1e293b !important;
+  color: var(--text) !important;
+}
+
+:root[data-theme="dark"] .card .tablerow {
+  background-color: transparent !important;
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .card .table__row.is-top {
+  background: #1a2e05 !important;
+  color: var(--text) !important;
+  font-weight: bold;
+}
+
+:root[data-theme="dark"] .stat {
+  background: #1e293b !important;
+  color: var(--text) !important;
+}
 /* smooth theme transition */
 html, body { transition: background-color .25s ease, color .25s ease; }
