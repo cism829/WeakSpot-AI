@@ -9,7 +9,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
   const StudentLinks = [
     { to: "/students/tutors", label: "Find Tutors" },
     { to: "/students/professors", label: "Connect Professors" },
-    { to: "/students/requests", label: "My Requests" },           
+    { to: "/students/requests", label: "My Requests" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/notes", label: "Notes" },
     { to: "/notes-analysis", label: "Notes Analysis" },
@@ -18,8 +18,8 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/progress", label: "Progress" },
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/studygroups", label: "Study Groups" },
-    { to: "/generate-quiz",  label: "Generate Quiz" },
-    { to: "/quiz",        label: "My Quizzes" },    
+    { to: "/generate-quiz", label: "Generate Quiz" },
+    { to: "/quiz", label: "My Quizzes" },
     { to: "/exam", label: "Exam" },
     { to: "/quiz-feedback", label: "Quiz Feedback" },
     { to: "/profile", label: "Profile" },
@@ -34,7 +34,11 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/studygroups", label: "Study Groups" },
     { to: "/professor/announcements", label: "Announcements" },
     { to: "/professor/requests", label: "Requests" },
-
+    { to: "/flashcards", label: "Flashcards" },
+    { to: "/generate-quiz", label: "Generate Quiz" },
+    { to: "/quiz", label: "My Quizzes" },
+    { to: "/exam", label: "Exam" },
+    { to: "/quiz-feedback", label: "Quiz Feedback" },
     { to: "/professor/profile", label: "Profile" },
   ];
 
@@ -44,8 +48,12 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/tutor/schedule", label: "Schedule" },
     { to: "/studygroups", label: "Study Groups" },
     { to: "/tutor/resources", label: "Resources" },
-    { to: "/tutor/requests", label: "Requests" },                  
-
+    { to: "/tutor/requests", label: "Requests" },
+    { to: "/flashcards", label: "Flashcards"}, 
+    { to: "/generate-quiz", label: "Generate Quiz" },
+    { to: "/quiz", label: "My Quizzes" },
+    { to: "/exam", label: "Exam" },
+    { to: "/quiz-feedback", label: "Quiz Feedback" },
     { to: "/tutor/profile", label: "Profile" },
   ];
 
