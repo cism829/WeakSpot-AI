@@ -35,7 +35,7 @@ def semantic_search_best_chunk_per_note(
                 c.note_id,
                 c.chunk_index,
                 c.text,
-                (c.embedding <=> (:qemb)::vector) AS distance
+                (c.embedding::text::vector <=> (:qemb)::vector) AS distance
             FROM note_chunks c
             JOIN notes n ON n.note_id = c.note_id
             WHERE {" AND ".join(filters)}
