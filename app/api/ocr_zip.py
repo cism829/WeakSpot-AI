@@ -95,6 +95,7 @@ async def ocr_from_zip(
                 user_id=owner_id,
                 og_text=text,
                 status="ocr_done",
+                filename=path.name,
             )
             db.add(note)
             db.flush()          # get note.note_id

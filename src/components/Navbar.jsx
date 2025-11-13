@@ -33,7 +33,6 @@ export default function Navbar({ onToggleSidebar }) {
     return (
         <header className="nav">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button className="btn btn--light" onClick={onToggleSidebar} title="Menu">☰</button>
                 <div className="nav__brand">📘 WeakSpot</div>
             </div>
 
