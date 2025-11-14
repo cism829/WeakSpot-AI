@@ -18,7 +18,7 @@ export default function NoteRepair() {
     (async () => {
       setLoading(true); setErr("");
       try {
-        const r = await ocrGetRepair(repairId, token); // requires backend GET endpoint
+        const r = await ocrGetRepair(repairId, token); 
         if (!alive) return;
         setRep(r);
         setEdited(r?.suggested_text || "");
