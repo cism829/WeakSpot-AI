@@ -108,59 +108,159 @@ export default function StudentConnectProfessors() {
           <div className="card__head"><h3>Results</h3></div>
           <div className="card__body">
             {!items.length && <div className="muted">No professors found.</div>}
-            <ul className="list">
-              {items.map((p) => (
-                <li key={p.id} className="list__row">
-                  <div>
-                    <div className="bold">
-                      {p.first_name} {p.last_name}{" "}
-                      <span className="muted">({p.email})</span>
-                      {statusByProfId[p.id] && (
-                        <span className={`pill pill--${statusByProfId[p.id] === "accepted" ? "green" : statusByProfId[p.id] === "declined" ? "red" : "blue"}`}
-                          style={{ marginLeft: 8 }}>
-                          {statusByProfId[p.id]}
-                        </span>
-                      )}
-                    </div>
-                    <div className="muted">
-                      Dept: {p.department || "—"} • Courses: {Array.isArray(p.courses) && p.courses.length ? p.courses.join(", ") : "—"}
-                    </div>
-                    <div className="muted">
-                      Office Hours:{" "}
-                      {Array.isArray(p.office_hours) && p.office_hours.length
-                        ? p.office_hours
-                          .map((o) => `${o.day || ""} ${o.start || ""}${o.end ? `-${o.end}` : ""}${o.location ? ` @ ${o.location}` : ""}`.trim())
-                          .join("; ")
-                        : "—"}
-                    </div>
-                    <div className="muted">Rating: {p.rating ?? 0}</div>
-                    <p>{p.bio}</p>
-                  </div>
 
-                  <div className="stack" style={{ minWidth: 260 }}>
-                    <input
-                      className="input"
-                      placeholder="Message…"
-                      value={msgById[p.id] || ""}
-                      onChange={(e) => setMsg(p.id, e.target.value)}
-                    />
-                    <input
-                      className="input"
-                      placeholder="Preferred time (e.g., 2025-10-28 14:00)"
-                      value={timeById[p.id] || ""}
-                      onChange={(e) => setTime(p.id, e.target.value)}
-                    />
-                    <button
-                      className="btn btn--primary"
-                      disabled={busy || statusByProfId[p.id] === "pending" || statusByProfId[p.id] === "accepted"}
-                      onClick={() => handleRequest(p.id)}
-                    >
-                      {statusByProfId[p.id] === "pending" ? "Pending…" :
-                        statusByProfId[p.id] === "accepted" ? "Accepted" :
-                          "Request meeting"}                    </button>
-                  </div>
-                </li>
-              ))}
+            <ul className="list">
+              {items.map((p) => {
+                const status = statusByProfId[p.id];
+                const statusClass =
+                  status === "accepted"
+                    ? "pill pill--ok"
+                    : status === "declined"
+                      ? "pill pill--bad"
+                      : "pill";
+
+                return (
+                  <li key={p.id} className="list__row">
+                    <div>
+                      <div className="bold">
+                        {p.first_name} {p.last_name}{" "}
+                        <span className="muted">({p.email})</span>
+                        {status && (
+                          <span
+                            className={statusClass}
+                            style={{
+                              marginLeft: 8,
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {status}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="muted">
+                        Dept: {p.department || "—"} • Courses:{" "}
+                        {Array.isArray(p.courses) && p.courses.length
+                          ? p.courses.join(", ")
+                          : "—"}
+                      </div>
+
+                      <div className="muted">
+                        Office hours:{" "}
+                        {Array.isArray(p.office_hours) && p.office_hours.length
+                          ? p.office_hours
+                            .map((o) =>
+                              [
+                                o.day,
+                                o.start && o.end
+                                  ? `${o.start}-${o.end}`
+                                  : o.start || o.end,
+                                o.location && `@ ${o.location}`,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")
+                            )
+                            .join("; ")
+                          : "—"}
+                      </div>
+
+                      {/* NEW: quick-pick buttons from office hours */}
+                      {Array.isArray(p.office_hours) && p.office_hours.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            Quick time picks (click to fill the box on the right):
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 4,
+                              marginTop: 4,
+                            }}
+                          >
+                            {p.office_hours.map((o, idx) => {
+                              const labelParts = [
+                                o.day,
+                                o.start && o.end
+                                  ? `${o.start}-${o.end}`
+                                  : o.start || o.end,
+                              ].filter(Boolean);
+
+                              const label =
+                                labelParts.length > 0 ? labelParts.join(" ") : "Office hours";
+
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  className="pill"
+                                  style={{
+                                    cursor: "pointer",
+                                    border: "none",
+                                    background: "var(--blue-soft)",
+                                  }}
+                                  disabled={busy}
+                                  onClick={() => setTime(p.id, label)}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {p.bio && <p>{p.bio}</p>}
+                    </div>
+
+                    {/* Right-hand side: message + preferred time + request button */}
+                    <div className="stack" style={{ minWidth: 260 }}>
+                      <label className="stack">
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          Message to professor (optional)
+                        </span>
+                        <input
+                          className="input"
+                          placeholder="Short note about what you need help with…"
+                          value={msgById[p.id] || ""}
+                          onChange={(e) => setMsg(p.id, e.target.value)}
+                        />
+                      </label>
+
+                      <label className="stack">
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          Preferred time
+                        </span>
+                        <input
+                          className="input"
+                          placeholder="E.g., Mon 3–4pm or 'anytime during office hours'"
+                          value={timeById[p.id] || ""}
+                          onChange={(e) => setTime(p.id, e.target.value)}
+                        />
+                        <span className="muted" style={{ fontSize: 11 }}>
+                          You can type your own time or click one of the quick picks above.
+                        </span>
+                      </label>
+
+                      <button
+                        className="btn btn--primary"
+                        disabled={
+                          busy ||
+                          statusByProfId[p.id] === "pending" ||
+                          statusByProfId[p.id] === "accepted"
+                        }
+                        onClick={() => handleRequest(p.id)}
+                      >
+                        {statusByProfId[p.id] === "pending"
+                          ? "Pending…"
+                          : statusByProfId[p.id] === "accepted"
+                            ? "Accepted"
+                            : "Request meeting"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>

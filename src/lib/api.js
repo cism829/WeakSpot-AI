@@ -366,3 +366,5 @@ export const acceptConnection = (id, token) =>
 export const declineConnection = (id, token) =>
   req(`/connections/${id}/decline`, { method: "POST", token });
 
+export const listTutorStudents = (token) =>
+  req(`/tutors/me/students`, { token });

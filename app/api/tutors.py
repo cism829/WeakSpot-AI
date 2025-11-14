@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
-from typing import Optional
+from typing import Optional, List
 import json
 
 from app.core.db import get_db
@@ -9,7 +9,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.tutor import Tutor
 from app.models.connection_request import ConnectionRequest
-from app.schemas.tutor import TutorOut, TutorCreate, TutorSearchOut, TutorUpsert
+from app.schemas.tutor import TutorOut, TutorCreate, TutorSearchOut, TutorUpsert, TutorStudentOut, TutorStudentMini
 from app.schemas.connection import ConnectionCreate, ConnectionOut
 
 router = APIRouter(prefix="/tutors", tags=["tutors"])
@@ -134,6 +134,58 @@ def create_or_update_my_tutor_profile(
     db.commit()
     db.refresh(t)
     return serialize_tutor_row(t)
+
+@router.get("/me/students", response_model=List[TutorStudentOut])
+def list_my_students(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return all students who have an ACCEPTED connection to the
+    currently logged-in tutor.
+    """
+    # Find the Tutor row that belongs to this user
+    tutor = (
+        db.query(Tutor)
+        .filter(Tutor.user_id == current_user.id)
+        .first()
+    )
+    if not tutor:
+        # This account has no tutor profile yet -> no students
+        return []
+
+    # Find all accepted requests that target THIS tutor profile
+    rows = (
+        db.query(ConnectionRequest)
+        .filter(
+            ConnectionRequest.target_type == "tutor",
+            ConnectionRequest.target_id == tutor.id,
+            ConnectionRequest.status == "accepted",
+        )
+        .order_by(ConnectionRequest.created_at.desc())
+        .all()
+    )
+
+    result: list[TutorStudentOut] = []
+    for r in rows:
+        u = r.user  # relationship from ConnectionRequest -> User
+        if not u:
+            continue
+
+        result.append(
+            TutorStudentOut(
+                connection_id=r.id,
+                since=r.created_at.isoformat() if r.created_at else None,
+                student=TutorStudentMini(
+                    id=u.id,
+                    first_name=u.first_name,
+                    last_name=u.last_name,
+                    email=u.email,
+                ),
+            )
+        )
+
+    return result
 
 @router.post("/{target_id}/request", response_model=ConnectionOut)
 def request_tutor(

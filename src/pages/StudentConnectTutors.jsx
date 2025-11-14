@@ -109,55 +109,137 @@ export default function StudentConnectTutors() {
           <div className="card__body">
             {!items.length && <div className="muted">No tutors found.</div>}
             <ul className="list">
-              {items.map((t) => (
-                <li key={t.id} className="list__row">
-                  <div>
-                    <div className="bold">
-                      {t.first_name} {t.last_name}{" "}
-                      <span className="muted">({t.email})</span>
-                      {statusByTutorId[t.id] && (
-                        <span className={`pill pill--${statusByTutorId[t.id] === "accepted" ? "green" : statusByTutorId[t.id] === "declined" ? "red" : "blue"}`}
-                          style={{ marginLeft: 8 }}>
-                          {statusByTutorId[t.id]}
-                        </span>
-                      )}
-                    </div>
-                    <div className="muted">
-                      Subjects: {Array.isArray(t.subjects) && t.subjects.length ? t.subjects.join(", ") : "—"}
-                    </div>
-                    <div className="muted">
-                      Rate: ${t.hourly_rate ?? 0}/hr • Rating: {t.rating ?? 0}
-                    </div>
-                    <div className="muted">
-                      Availability: {Array.isArray(t.availability) && t.availability.length ? t.availability.join(", ") : "—"}
-                    </div>
-                    <p>{t.bio}</p>
-                  </div>
+              {items.map((t) => {
+                const status = statusByTutorId[t.id];
+                const statusClass =
+                  status === "accepted"
+                    ? "pill pill--ok"
+                    : status === "declined"
+                      ? "pill pill--bad"
+                      : "pill";
 
-                  <div className="stack" style={{ minWidth: 260 }}>
-                    <input
-                      className="input"
-                      placeholder="Message to tutor…"
-                      value={msgById[t.id] || ""}
-                      onChange={(e) => setMsg(t.id, e.target.value)}
-                    />
-                    <input
-                      className="input"
-                      placeholder="Preferred time (e.g., 2025-10-28 14:00)"
-                      value={timeById[t.id] || ""}
-                      onChange={(e) => setTime(t.id, e.target.value)}
-                    />
-                    <button
-                      className="btn btn--primary"
-                      disabled={busy || statusByTutorId[t.id] === "pending" || statusByTutorId[t.id] === "accepted"}
-                      onClick={() => handleRequest(t.id)}
-                    >
-                      {statusByTutorId[t.id] === "pending" ? "Pending…" :
-                        statusByTutorId[t.id] === "accepted" ? "Accepted" :
-                          "Request session"}                    </button>
-                  </div>
-                </li>
-              ))}
+                return (
+                  <li key={t.id} className="list__row">
+                    <div>
+                      <div className="bold">
+                        {t.first_name} {t.last_name}{" "}
+                        <span className="muted">({t.email})</span>
+                        {status && (
+                          <span
+                            className={statusClass}
+                            style={{
+                              marginLeft: 8,
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {status}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="muted">
+                        Subjects:{" "}
+                        {Array.isArray(t.subjects) && t.subjects.length
+                          ? t.subjects.join(", ")
+                          : "—"}
+                      </div>
+
+                      <div className="muted">
+                        Rate: ${t.hourly_rate ?? 0}/hr • Rating: {t.rating ?? 0}
+                      </div>
+
+                      <div className="muted">
+                        Availability:{" "}
+                        {Array.isArray(t.availability) && t.availability.length
+                          ? t.availability.join(", ")
+                          : "—"}
+                      </div>
+
+                      {/* NEW: quick-pick buttons from availability */}
+                      {Array.isArray(t.availability) && t.availability.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            Quick time picks (click to fill the box on the right):
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 4,
+                              marginTop: 4,
+                            }}
+                          >
+                            {t.availability.map((slot, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className="pill"
+                                style={{
+                                  cursor: "pointer",
+                                  border: "none",
+                                  background: "var(--blue-soft)",
+                                }}
+                                disabled={busy}
+                                onClick={() => setTime(t.id, slot)}
+                              >
+                                {slot}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {t.bio && <p>{t.bio}</p>}
+                    </div>
+
+                    {/* Right-hand side: message + preferred time + request button */}
+                    <div className="stack" style={{ minWidth: 260 }}>
+                      <label className="stack">
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          Message to tutor (optional)
+                        </span>
+                        <input
+                          className="input"
+                          placeholder="Short note about what you need help with…"
+                          value={msgById[t.id] || ""}
+                          onChange={(e) => setMsg(t.id, e.target.value)}
+                        />
+                      </label>
+
+                      <label className="stack">
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          Preferred time
+                        </span>
+                        <input
+                          className="input"
+                          placeholder="E.g., Wed 3–4pm or 'this weekend evening'"
+                          value={timeById[t.id] || ""}
+                          onChange={(e) => setTime(t.id, e.target.value)}
+                        />
+                        <span className="muted" style={{ fontSize: 11 }}>
+                          You can type your own time or click one of the availability chips above.
+                        </span>
+                      </label>
+
+                      <button
+                        className="btn btn--primary"
+                        disabled={
+                          busy ||
+                          statusByTutorId[t.id] === "pending" ||
+                          statusByTutorId[t.id] === "accepted"
+                        }
+                        onClick={() => handleRequest(t.id)}
+                      >
+                        {statusByTutorId[t.id] === "pending"
+                          ? "Pending…"
+                          : statusByTutorId[t.id] === "accepted"
+                            ? "Accepted"
+                            : "Request session"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
