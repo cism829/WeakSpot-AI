@@ -12,7 +12,7 @@ function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     { to: "/students/requests", label: "My Requests" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/notes", label: "Notes" },
-    // { to: "/notes/ocr-zip", label: "OCR from ZIP" },
+    { to: "/notes/ocr-zip", label: "OCR from ZIP" },
     { to: "/flashcards", label: "Flashcards" },
     { to: "/progress", label: "Progress" },
     { to: "/leaderboard", label: "Leaderboard" },
