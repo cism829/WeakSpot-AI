@@ -353,7 +353,6 @@ function RunnerMode({ quizId, user, setUser, nav }) {
                                                 ? "var(--accent, #5563ff)"
                                                 : "var(--border, #e5e7eb)"
                                             }`,
-                                        background: picked ? "rgba(85,99,255,0.07)" : "white",
                                         cursor: "pointer",
                                     }}
                                 >
