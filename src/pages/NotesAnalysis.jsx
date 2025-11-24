@@ -73,23 +73,49 @@ export default function NotesAnalysis() {
                     </button>
                 </Card>
                 <Card title="Key Concepts" tone="green">
-                    {!ana ? <div className="muted">No analysis yet.</div> : (
+                    {!ana ? (
+                        <div className="muted">No analysis yet.</div>
+                    ) : (
                         <ul className="list">
-                            {(ana.blocks || []).map((b, idx) => (
-                                <li key={idx}>
-                                    <strong>{b.heading || b.title || `Block ${idx + 1}`}</strong>
-                                    {b.key_points && (
-                                        <ul className="list" style={{ marginTop: 6 }}>
-                                            {b.key_points.map((t, i) => (<li key={i}>{t}</li>))}
-                                        </ul>
-                                    )}
-                                </li>
-                            ))}
+                            {(ana.blocks || []).map((b, idx) => {
+
+                                return (
+                                    <li key={idx} className="list__row">
+                                        <div className="col" style={{ gap: 6 }}>
+
+                                            {Array.isArray(b.sentences) && b.sentences.length > 0 && (
+                                                <ul className="list" style={{ marginTop: 6 }}>
+                                                    {b.sentences.slice(0, 3).map((s, i) => (
+                                                        <li key={i}>{s}</li>
+                                                    ))}
+                                                </ul>
+                                            )}
+
+                                            {b.definition?.definition && (
+                                                <div>
+                                                    <span className="muted">definition — </span>
+                                                    {b.definition.definition}
+                                                </div>
+                                            )}
+
+                                            {!b.definition?.definition && b.summary && (
+                                                <div>{b.summary}</div>
+                                            )}
+
+                                            {!b.summary && !b.definition && !b.sentences && b.text && (
+                                                <pre style={{ whiteSpace: "pre-wrap" }}>{b.text}</pre>
+                                            )}
+                                        </div>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
                 </Card>
                 <Card title="Summary" tone="purple">
-                    {!ana ? <div className="muted">No summary yet.</div> : (
+                    {!ana ? (
+                        <div className="muted">No summary yet.</div>
+                    ) : (
                         <div style={{ whiteSpace: "pre-wrap" }}>{ana.summary}</div>
                     )}
                 </Card>

@@ -174,7 +174,6 @@ export default function Notes() {
     try {
       setSearchBusy(true);
       setSearchErr("");
-      // You can tweak k / threshold here
       const results = await semanticSearchNotes(
         { query: q, k: 10, threshold: 0.7 },
         token,
