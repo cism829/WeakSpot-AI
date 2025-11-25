@@ -1,4 +1,3 @@
-
 from typing import Optional, List, Any, Dict
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Body
@@ -27,8 +26,7 @@ class ApplyIn(BaseModel):
 def get_repair(repair_id: UUID, db: Session = Depends(get_db), user = Depends(get_current_user)):
     rep = db.query(NoteRepair).filter(
         NoteRepair.repair_id == repair_id,
-        # optionally enforce ownership if model stores user_id:
-        # NoteRepair.user_id == user.id
+
     ).first()
     if not rep:
         raise HTTPException(status_code=404, detail="repair not found")
@@ -50,14 +48,12 @@ def suggest(note_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="note has no text")
 
     result = suggest_repair_for_text(note.og_text)
-    suggested = result.get("suggested_text") or note.og_text
-    status = "pending" if result.get("suggested_text") is not None else "noop"
     rep = NoteRepair(
         note_id=note.note_id,
         original_text=note.og_text,
-        suggested_text=suggested,
+        suggested_text=result.get("suggested_text"),
         suggestion_log=result.get("log", []),
-        status= status,
+        status="pending",
     )
     db.add(rep)
     db.flush()
